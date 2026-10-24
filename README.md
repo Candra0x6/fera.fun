@@ -1,6 +1,6 @@
 # FERA.FUN on Monad
 
-![Uploading FERA.FUN Dragon Crest.png…]()
+<img width="1080" height="1080" alt="fera-square-1080x1080" src="https://github.com/user-attachments/assets/12a2bf38-90af-4985-82a6-ca7f60404856" />
 What if Pump.fun-style token launches became a real-time battle royale?
 
 FERA.FUN turns token launches into a PvE battle arena on Monad, where coins spawn, level up, and fight until only one survives. Up to 6 coins compete in a shared 3D arena, where every defeated coin’s liquidity is redistributed to boost the winner, reward defeated holders, and fuel the prize pool. Powered by on-chain game mechanics and random outcomes, FERA.FUN transforms token trading into a competitive experience where every battle changes the game and every round crowns a new potential champion.
