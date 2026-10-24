@@ -314,7 +314,7 @@ flowchart LR
 | Coins max / min | 6 / 6 | 6 / 5 | 30 / 8 | 30 / 12 |
 | Lobby | 600 s, starts as soon as it is full (6 coins) | 3600 s | 120 s | 900 s |
 | Leveling epochs | 1 | 3 | 3 | 10 |
-| Epoch spacing | 8 s | 30 s | 20 s | 60 s |
+| Epoch spacing | 14 s | 30 s | 20 s | 60 s |
 | Clashes per epoch | 2 | 3 | 6 | 4 |
 | Launch fee | 0.1 MON | 0.1 MON | 1 MON | 5 MON |
 | Seed range | fixed 0.1 MON | 0.2 to 5 MON | 2 to 50 MON | 10 to 500 MON |
@@ -323,7 +323,7 @@ flowchart LR
 | Trade fee | 1 percent | 1 percent | 1 percent | 1 percent |
 | Curve | `vMon0` 20 MON, `vTok0` 1e9 tokens | same | same | same |
 
-Every blitz coin is seeded with exactly 0.1 MON (`minSeed` equals `maxSeed`), so house coins and player coins start on the same footing and a lobby fills cheaply. A blitz round is about four epochs (one leveling, three knockout) of 8 s plus the Entropy wait, so about 50 seconds from the last coin to the Chosen One (measured on the live deployment: 49 s and 42 s over two rounds, plus about 12 s for the demo panel to seed five house coins). Fewer than five coins or more than `maxCoins / 2` clashes per epoch is rejected by the contract.
+Every blitz coin is seeded with exactly 0.1 MON (`minSeed` equals `maxSeed`), so house coins and player coins start on the same footing and a lobby fills cheaply. A blitz round is about four epochs (one leveling, three knockout) of 14 s plus the Entropy wait of about 4 to 5 s, so each epoch takes roughly 18 to 19 s (the first leveling epoch about a second longer) and a round takes about 75 seconds from the last coin to the Chosen One. With the earlier 8 s spacing the live deployment measured 49 s and 42 s over two rounds; the 14 s figure is calculated from that, not yet measured. Seeding five house coins from the demo panel adds about 12 s. Fewer than five coins or more than `maxCoins / 2` clashes per epoch is rejected by the contract.
 
 `docs/pitch/economy-report.md` is the simulator's verdict and the source for parameter changes. It ends in `GATE: PASS` for `gamma = 0.88` and records the findings that remain open (a small-pool premium below 0.25x of the mean pool, and the creator-seed edge at `vMon0 = 20 MON`).
 
