@@ -1,0 +1,12 @@
+{
+  "arena": "0x1457C31eb744f805E3F5a3c0a369b45397ACD975",
+  "chainId": 143,
+  "coinImplementation": "0x7182918AfE574309BEB1fE48449d89d5cF285CA1",
+  "commit": "unversioned",
+  "deployBlock": 116127757,
+  "deployedAt": 1792828096,
+  "entropy": "0xD458261E832415CFd3BAE5E416FdF3230ce6F134",
+  "entropyProvider": "0x52DeaA1c84233F7bb8C8A45baeDE41091c616506",
+  "keeper": "0xe2B7f8a71d3AcAEBBe3BBEF1B5001888CA0013c0",
+  "seedSource": "0xa5A2c24CF63f5201C4467B01f49ADDceE6db444a"
+}

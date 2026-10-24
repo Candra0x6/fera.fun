@@ -5,11 +5,19 @@ import {Script} from "forge-std/Script.sol";
 import {Arena} from "../src/Arena.sol";
 import {MonsterCoin} from "../src/MonsterCoin.sol";
 import {EntropySeedSource} from "../src/seed/EntropySeedSource.sol";
+import {IArena} from "../src/IArena.sol";
 import {Presets} from "./Presets.sol";
 import {DeployLib} from "./DeployLib.sol";
 
 contract Deploy is Script {
     uint32 internal constant CALLBACK_GAS_LIMIT = 200_000;
+
+    /// @dev blitz preset; MAX_ENTROPY_FEE_WEI overrides the Entropy fee cap (mainnet fee is about 1.4 MON per request).
+    function _config() internal view returns (IArena.RoundConfig memory cfg) {
+        cfg = Presets.blitz();
+        uint256 maxEntropyFee = vm.envOr("MAX_ENTROPY_FEE_WEI", uint256(0));
+        if (maxEntropyFee != 0) cfg.maxEntropyFee = uint128(maxEntropyFee);
+    }
 
     function run() external {
         string memory account = vm.envString("DEPLOYER_ACCOUNT");
@@ -26,8 +34,8 @@ contract Deploy is Script {
         Arena arena = new Arena(deployer, address(impl), floor);
         EntropySeedSource source = new EntropySeedSource(address(arena), entropy, provider, CALLBACK_GAS_LIMIT);
         arena.setSeedSource(address(source));
-        arena.setDefaultConfig(Presets.blitz());
-        if (floor + extraFund != 0 || vm.envOr("CREATE_FIRST_ROUND", false)) {
+        arena.setDefaultConfig(_config());
+        if (!vm.envOr("SKIP_FIRST_ROUND", false) && (floor + extraFund != 0 || vm.envOr("CREATE_FIRST_ROUND", false))) {
             arena.createDefaultRound{value: floor + extraFund}();
         }
         vm.stopBroadcast();
@@ -38,7 +46,7 @@ contract Deploy is Script {
             DeployLib.Addresses(address(arena), address(impl), address(source), entropy, provider, keeper),
             floor,
             CALLBACK_GAS_LIMIT,
-            Presets.blitz()
+            _config()
         );
     }
 }

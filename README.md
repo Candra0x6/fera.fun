@@ -14,6 +14,7 @@ A real-time on-chain battle royale for coins, built for fun on **Monad testnet (
 | Keeper EOA | [`0xFaf5775e91d5c48f88E5312146eACb2c723288d9`](https://testnet.monadvision.com/address/0xFaf5775e91d5c48f88E5312146eACb2c723288d9) |
 | Deploy block | 73723341 |
 | Network | Monad testnet, chain id 10143, RPC `https://testnet-rpc.monad.xyz` |
+| Mainnet (showcase) | Monad mainnet, chain id 143, Arena [`0x1457C31eb744f805E3F5a3c0a369b45397ACD975`](https://monadvision.com/address/0x1457C31eb744f805E3F5a3c0a369b45397ACD975), deployed and verified, no round open. See [Mainnet deployment](#mainnet-deployment). |
 
 The 3D arena is the Three.js prototype (`monster_arena_3d_prototype (1).html`) extracted into a Vite app. It replays confirmed chain events and never decides an outcome. All money and all outcomes live on chain.
 
@@ -479,6 +480,25 @@ Everything below was deployed fresh in one migration (new contracts, new keys, n
 | Seeder | `0x2e31A761A02ce7D8Fb9C929C63aa6AB2693e6F7c` | creates lobbies and seeds house coins from the demo panel | about 1 MON per demo round |
 
 The Arena holds a 10 MON reserve floor in its treasury. It carries over from round to round and cannot be taken out.
+
+### Mainnet deployment
+
+The same contract system is also deployed on **Monad mainnet (chain id 143)** as a showcase. Everything else in this project (keeper, web app, demo flow, tests) targets **testnet only**; nothing on mainnet is used or funded beyond the deployment itself.
+
+| Contract | Address |
+|---|---|
+| Arena | [`0x1457C31eb744f805E3F5a3c0a369b45397ACD975`](https://monadvision.com/address/0x1457C31eb744f805E3F5a3c0a369b45397ACD975) |
+| EntropySeedSource | [`0xa5A2c24CF63f5201C4467B01f49ADDceE6db444a`](https://monadvision.com/address/0xa5A2c24CF63f5201C4467B01f49ADDceE6db444a) |
+| MonsterCoin implementation | [`0x7182918AfE574309BEB1fE48449d89d5cF285CA1`](https://monadvision.com/address/0x7182918AfE574309BEB1fE48449d89d5cF285CA1) |
+| Owner | `0xe2B7f8a71d3AcAEBBe3BBEF1B5001888CA0013c0` |
+| Pyth Entropy / provider | `0xD458261E832415CFd3BAE5E416FdF3230ce6F134` / `0x52DeaA1c84233F7bb8C8A45baeDE41091c616506` |
+| Deploy block | 116127757 |
+
+- All three contracts are verified on Sourcify (MonadVision); addresses are recorded in `deployments/143.json`.
+- Deployed with `script/Deploy.s.sol` using `SKIP_FIRST_ROUND=true` and `MAX_ENTROPY_FEE_WEI=2000000000000000000`. The gas cost was about 1.34 MON.
+- The default config is the blitz preset with the Entropy fee cap raised to 2 MON, because the mainnet Entropy fee read on chain is about 1.4 MON per request (testnet is about 0.13 MON).
+- No round exists and the treasury is empty. To run it, someone would have to open a round with about 10 MON for the reserve floor and fund the treasury to roughly 18 MON before `startRound`, and run a keeper.
+- The code is unaudited. Do not fund it or treat it as production.
 
 ## 12. Repository layout
 
