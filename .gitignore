@@ -1,0 +1,13 @@
+node_modules
+dist
+.env*
+!.env.example
+contracts/out
+contracts/cache
+contracts/lib
+*.log
+contracts/broadcast
+.claude
+.cursor
+.mcp.json
+contracts/foundry-pp

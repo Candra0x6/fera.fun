@@ -1,0 +1,4 @@
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@pythnetwork/entropy-sdk-solidity/=lib/entropy-sdk-solidity/
+solady/=lib/solady/src/
+forge-std/=lib/forge-std/src/
