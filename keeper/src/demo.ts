@@ -93,7 +93,8 @@ export function createDemoAdmin(deps: DemoDeps): DemoAdmin {
     try {
       return await run()
     } catch (error) {
-      deps.log('demo operation failed', { error: error instanceof Error ? error.name : 'unknown' })
+      const detail = error instanceof Error ? error.message.replace(/0x[0-9a-fA-F]{40,}/g, '0x..').slice(0, 200) : ''
+      deps.log('demo operation failed', { error: error instanceof Error ? error.name : 'unknown', detail })
       return fail(502, { error: 'operation_failed' })
     } finally {
       busy = false

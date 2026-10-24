@@ -55,7 +55,7 @@ export function createViemDemoChain(options: DemoChainOptions): DemoChain {
       const round = record(
         await publicClient.readContract({ address: arena, abi: arenaAbi, functionName: 'getRound', args: [BigInt(previous)] })
       )
-      if (round['phase'] !== 4) return 0n
+      if (round['phase'] !== 4 && round['phase'] !== 5) return 0n
       const config = record(
         await publicClient.readContract({ address: arena, abi: arenaAbi, functionName: 'getConfig', args: [BigInt(previous)] })
       )

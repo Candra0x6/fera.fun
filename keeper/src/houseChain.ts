@@ -107,12 +107,16 @@ export function createViemHouseChain(options: HouseChainOptions): HouseChain {
       const target = options.houseAccount(walletIndex)
       const balance = await publicClient.getBalance({ address: target.address })
       if (balance >= amount) return
-      const receipt = await options.walletFor(options.seeder).sendTransactionSync({
-        to: target.address,
-        value: amount - balance,
-        gas: 21_000n
-      })
-      if (receipt.status !== 'success') throw new Error(`funding house wallet ${walletIndex} failed`)
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1500))
+        const receipt = await options.walletFor(options.seeder).sendTransactionSync({
+          to: target.address,
+          value: amount - balance,
+          gas: 21_000n
+        })
+        if (receipt.status === 'success') return
+      }
+      throw new Error(`funding house wallet ${walletIndex} failed`)
     },
     async launch(item: LaunchPlanItem, launchFee: bigint) {
       const account = options.houseAccount(item.walletIndex)
