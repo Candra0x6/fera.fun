@@ -11,6 +11,7 @@ FERA.FUN turns token launches into a PvE battle arena on Monad, where coins spaw
 |---|---|
 | Live app | https://fera-fun.vercel.app (add `/?demo` for the demo controls) |
 | Keeper API | https://fera-keeper.de.deplexo.com |
+| X post | https://x.com/ascey102/status/2113870984726151542 |
 | Arena contract | [`0xb88E9941262ACE4852A5389f674Cc48558751C83`](https://testnet.monadvision.com/address/0xb88E9941262ACE4852A5389f674Cc48558751C83) |
 | EntropySeedSource | [`0xa573D315d201d7BbdC405E5b26dC9eC9B6EFfF80`](https://testnet.monadvision.com/address/0xa573D315d201d7BbdC405E5b26dC9eC9B6EFfF80) |
 | MonsterCoin implementation | [`0x91d9D86D133f107A4F86E7BA71BF0049E27ACF54`](https://testnet.monadvision.com/address/0x91d9D86D133f107A4F86E7BA71BF0049E27ACF54) |
