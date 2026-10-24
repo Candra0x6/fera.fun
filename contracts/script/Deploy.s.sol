@@ -26,7 +26,7 @@ contract Deploy is Script {
         Arena arena = new Arena(deployer, address(impl), floor);
         EntropySeedSource source = new EntropySeedSource(address(arena), entropy, provider, CALLBACK_GAS_LIMIT);
         arena.setSeedSource(address(source));
-        arena.setDefaultConfig(Presets.lite());
+        arena.setDefaultConfig(Presets.blitz());
         if (floor + extraFund != 0 || vm.envOr("CREATE_FIRST_ROUND", false)) {
             arena.createDefaultRound{value: floor + extraFund}();
         }
@@ -38,7 +38,7 @@ contract Deploy is Script {
             DeployLib.Addresses(address(arena), address(impl), address(source), entropy, provider, keeper),
             floor,
             CALLBACK_GAS_LIMIT,
-            Presets.lite()
+            Presets.blitz()
         );
     }
 }

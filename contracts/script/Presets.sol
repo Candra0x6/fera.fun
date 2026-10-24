@@ -51,6 +51,19 @@ library Presets {
         c.maxEntropyFee = 0.2 ether;
     }
 
+    /// @dev Two-minute demo: the lobby starts the moment six coins are in, one leveling epoch, short epochs.
+    function blitz() internal pure returns (IArena.RoundConfig memory c) {
+        c = lite();
+        c.minCoins = 6;
+        c.maxCoins = 6;
+        c.lobbySeconds = 600;
+        c.levelingEpochs = 1;
+        c.epochSeconds = 14;
+        c.clashesPerEpoch = 2;
+        c.minSeed = 0.1 ether;
+        c.maxSeed = 0.1 ether;
+    }
+
     function standard() internal pure returns (IArena.RoundConfig memory c) {
         c = demo();
         c.minCoins = 12;
