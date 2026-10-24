@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FERA.FUN</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23f59e0b' d='M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z'/%3E%3C/svg%3E" />
+</head>
+<body class="relative select-none">
+
+  <div id="canvas-container" class="absolute inset-0 z-0 cursor-grab active:cursor-grabbing"></div>
+
+  <div id="world-labels"></div>
+
+  <header class="fixed top-3 left-3 right-3 z-30 flex items-start justify-between gap-3 pointer-events-none">
+    <div class="flex items-start gap-4 pointer-events-auto">
+      <div class="hud-logo">
+        <h1 class="whitespace-nowrap" aria-label="FERA.FUN"><span class="a">FERA</span> <span class="b">.FUN</span></h1>
+        <p id="island-status" data-testid="status-chip" class="hud-logo-sub"></p>
+      </div>
+
+      <div class="cartoon-pill-badge text-base mt-1">
+        <div><i class="hud-dot"></i><span>Live</span></div>
+        <div>
+          <svg class="hud-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.8"/><path d="M2 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5zM16 14c3.5 0 6 2 6 5.5h-4.5c0-2-.8-3.8-1.5-5.5z"/></svg>
+          <span id="stat-active-count-badge">128</span>
+        </div>
+      </div>
+
+      <div id="island-rules" class="relative mt-1 pointer-events-auto"></div>
+
+      <!-- Preserved stats for testing & Director telemetry -->
+      <div data-testid="coin-counter" class="hidden">
+        <span id="stat-active-count">0</span>
+        <span id="stat-target-count">30</span>
+        <span id="stat-duel-count">0</span>
+        <span id="stat-consume-count">0</span>
+        <span id="stat-fps">60</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <div id="island-wallet"></div>
+      <div id="island-lobby"></div>
+      <button id="btn-trigger-duel" data-sim-only class="hidden">Trigger Nearby Duel</button>
+      <button id="btn-open-launch" data-sim-only class="cartoon-btn-yellow font-extrabold text-sm px-5 py-2.5 flex items-center gap-1.5">Launch Coin</button>
+    </div>
+  </header>
+
+  <!-- Left navigation: icon over label -->
+  <nav class="fixed top-[124px] left-3 z-20 flex flex-col gap-2.5 pointer-events-auto">
+    <button id="nav-btn-home" title="Home / Reset View" class="cartoon-btn nav-btn">
+      <svg viewBox="0 0 24 24" fill="#e2573c" aria-hidden="true"><path d="M12 3l10 9h-3v8h-5v-6h-4v6H5v-8H2z"/></svg>
+      <span>Home</span>
+    </button>
+    <button id="nav-btn-monsters" title="Monsters Catalog" class="cartoon-btn nav-btn">
+      <svg viewBox="0 0 24 24" fill="#7b3fe4" aria-hidden="true"><path d="M4 4l4 3h8l4-3v9a8 8 0 01-16 0z"/><circle cx="9" cy="12" r="1.6" fill="#fff"/><circle cx="15" cy="12" r="1.6" fill="#fff"/></svg>
+      <span>Monsters</span>
+    </button>
+    <button id="nav-btn-rank" title="Leaderboard" class="cartoon-btn nav-btn">
+      <svg viewBox="0 0 24 24" fill="#f5a30c" aria-hidden="true"><path d="M6 3h12v5a6 6 0 01-4 5.6V16h3v3H7v-3h3v-2.4A6 6 0 016 8zM2 5h3v4a3 3 0 01-3-3zm20 0h-3v4a3 3 0 003-3z"/></svg>
+      <span>Rank</span>
+    </button>
+    <button id="nav-btn-shop" title="Launch Coin" class="cartoon-btn nav-btn">
+      <svg viewBox="0 0 24 24" fill="#e2453c" aria-hidden="true"><path d="M3 9l2-5h14l2 5zm1 2h16v9H4zm5 3v6h6v-6z"/></svg>
+      <span>Shop</span>
+    </button>
+  </nav>
+
+  <!-- Left Drawer for Filters (Collapsible on demand) -->
+  <aside id="arena-filters-aside" class="fixed top-[124px] left-[88px] z-20 w-64 flex flex-col gap-2.5 pointer-events-none hidden transition-all">
+    <div class="cartoon-panel rounded-2xl pointer-events-auto flex flex-col gap-2.5 pb-3">
+      <div class="modal-head !py-2.5">
+        <h3 class="!text-[13px] uppercase tracking-wide">Arena Filters</h3>
+        <span id="filter-match-count" class="text-[10px] font-bold text-[#d6eef5]">All visible</span>
+      </div>
+
+      <div class="px-3 flex flex-col gap-2.5">
+        <div class="relative">
+          <input id="input-search-ticker" type="text" maxlength="16" placeholder="Search ticker..."
+            class="w-full bg-[#fbf3de] border-2 border-[#d9c593] rounded-xl pl-7 pr-2.5 py-1.5 text-xs text-[#2a4a57] font-bold placeholder-[#4d6670] outline-none focus:border-[#2b7a8e]" />
+          <svg class="w-3.5 h-3.5 text-[#4d6670] absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+
+        <div>
+          <div class="text-[10px] uppercase tracking-wider text-[#4d6670] font-extrabold mb-1">Element Identity</div>
+          <div class="grid grid-cols-3 gap-1.5 text-[11px]" id="element-filter-group">
+            <button data-el="all" class="el-btn active cartoon-btn !rounded-xl px-2 py-1 text-xs">All</button>
+            <button data-el="fire" class="el-btn cartoon-btn !rounded-xl px-2 py-1 text-xs text-red-700">🔥 Fire</button>
+            <button data-el="ice" class="el-btn cartoon-btn !rounded-xl px-2 py-1 text-xs text-sky-700">❄️ Ice</button>
+            <button data-el="earth" class="el-btn cartoon-btn !rounded-xl px-2 py-1 text-xs text-emerald-700">🪨 Earth</button>
+            <button data-el="electric" class="el-btn cartoon-btn !rounded-xl px-2 py-1 text-xs text-amber-700">⚡ Elec</button>
+            <button data-el="dark" class="el-btn cartoon-btn !rounded-xl px-2 py-1 text-xs text-purple-700">🔮 Dark</button>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t-2 border-[#e3d1a6] flex flex-col gap-1.5 text-xs font-bold text-[#2a4a57]">
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-[11px]">Selective Labels</span>
+            <input type="checkbox" id="toggle-selective-labels" checked class="accent-[#27996f] rounded cursor-pointer" />
+          </label>
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-[11px]">Biome Markers</span>
+            <input type="checkbox" id="toggle-biome-markers" checked class="accent-[#27996f] rounded cursor-pointer" />
+          </label>
+          <label class="flex items-center justify-between cursor-pointer" data-sim-only>
+            <span class="text-[11px]">Auto-Respawn</span>
+            <input type="checkbox" id="toggle-auto-respawn" checked class="accent-[#27996f] rounded cursor-pointer" />
+          </label>
+        </div>
+
+        <div id="catalog-filter-list" class="flex flex-col gap-1 text-[11px] pt-2 border-t-2 border-[#e3d1a6]"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Aside: Leaderboard & Live Feed Panels -->
+  <aside class="fixed top-[84px] right-3 z-20 w-72 flex flex-col gap-3 max-h-[calc(100vh-140px)] pointer-events-none">
+    <div id="panel-leaderboard" class="cartoon-panel p-3 pointer-events-auto flex flex-col gap-1">
+      <h2 class="hud-title"><span aria-hidden="true">🏆</span> Leaderboard <small>Pool value</small></h2>
+      <div id="leaderboard-list" class="flex flex-col max-h-48 overflow-y-auto pr-0.5"></div>
+    </div>
+
+    <div id="panel-live-feed" class="cartoon-panel p-3 pointer-events-auto flex flex-col gap-1 flex-1 min-h-[140px] max-h-60 overflow-hidden">
+      <h2 class="hud-title"><span aria-hidden="true">⚔️</span> Live Feed <span class="feed-badge ml-auto" id="feed-source-badge">Live</span></h2>
+      <div id="kill-feed-list" class="flex flex-col overflow-y-auto pr-0.5 flex-1 text-xs">
+        <div class="text-[11px] text-[#4d6670] italic py-3 text-center">
+          Waiting for the first clash...
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bottom-Left Arena Info Card -->
+  <div class="hud-arena fixed bottom-4 left-4 z-20 cartoon-panel p-2.5 flex items-center gap-3 pointer-events-auto">
+    <div class="hud-arena-thumb" aria-hidden="true">
+      <svg viewBox="0 0 64 48" width="62" height="46"><ellipse cx="32" cy="34" rx="28" ry="10" fill="#83d66b"/><ellipse cx="32" cy="38" rx="28" ry="8" fill="#6a4a2f" opacity=".55"/><ellipse cx="32" cy="32" rx="26" ry="9" fill="#83d66b"/><ellipse cx="32" cy="32" rx="12" ry="4" fill="#f1d9a0"/><path d="M28 28l4-9 4 9z" fill="#e2573c"/><circle cx="18" cy="29" r="3.5" fill="#2e9e5b"/><circle cx="47" cy="30" r="3" fill="#2e9e5b"/></svg>
+    </div>
+    <div class="pr-1">
+      <div class="font-black text-lg text-[#2a4a57] leading-tight">Arena #1</div>
+      <div class="text-xs font-bold text-[#4d6670]">Global Arena</div>
+      <div class="text-xs font-bold text-[#4d6670] flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-[#43c291] animate-pulse"></span>
+        <span>128 Online</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom-Center Monster Roster Tray -->
+  <div class="hud-tray fixed bottom-4 left-1/2 -translate-x-1/2 z-20 px-3 py-2 flex items-center gap-2 pointer-events-auto">
+    <button data-monster-id="fire_dragon" title="Fire Dragon" aria-label="Fire Dragon" class="roster-tray-btn tray-btn flex items-center justify-center text-lg">
+      🐉
+    </button>
+    <button data-monster-id="ice_wolf" title="Ice Wolf" aria-label="Ice Wolf" class="roster-tray-btn tray-btn flex items-center justify-center text-lg">
+      🐺
+    </button>
+    <button data-monster-id="earth_golem" title="Earth Golem" aria-label="Earth Golem" class="roster-tray-btn tray-btn flex items-center justify-center text-lg">
+      🗿
+    </button>
+    <button data-monster-id="electric_fox" title="Electric Fox" aria-label="Electric Fox" class="roster-tray-btn tray-btn flex items-center justify-center text-lg">
+      🦊
+    </button>
+    <button data-monster-id="dark_spirit" title="Dark Spirit" aria-label="Dark Spirit" class="roster-tray-btn tray-btn flex items-center justify-center text-lg">
+      👾
+    </button>
+  </div>
+
+  <!-- Bottom-Right Zoom & Camera Controls -->
+  <div class="hud-zoom fixed bottom-4 right-4 z-20 flex flex-col gap-2.5 pointer-events-auto">
+    <button id="btn-zoom-in" title="Zoom In" aria-label="Zoom in" class="cartoon-btn zoom-btn">+</button>
+    <button id="btn-zoom-out" title="Zoom Out" aria-label="Zoom out" class="cartoon-btn zoom-btn">&minus;</button>
+    <button id="btn-fit-world" title="Reset View" aria-label="Fit to world" class="cartoon-btn zoom-btn">
+      <svg viewBox="0 0 24 24" fill="#2f4c58" aria-hidden="true"><path d="M12 8a4 4 0 100 8 4 4 0 000-8zm9 5v-2l-2.2-.7a7 7 0 00-.7-1.6l1.1-2-1.4-1.4-2 1.1a7 7 0 00-1.6-.7L13 3h-2l-.7 2.2a7 7 0 00-1.6.7l-2-1.1L5.3 6.2l1.1 2a7 7 0 00-.7 1.6L3.5 11v2l2.2.7c.2.6.4 1.1.7 1.6l-1.1 2 1.4 1.4 2-1.1c.5.3 1 .5 1.6.7L11 21h2l.7-2.2c.6-.2 1.1-.4 1.6-.7l2 1.1 1.4-1.4-1.1-2c.3-.5.5-1 .7-1.6z"/></svg>
+    </button>
+  </div>
+
+  <!-- Detail / Inspector Panel -->
+  <div id="detail-panel" class="fixed bottom-[116px] left-[92px] max-[520px]:left-3 z-30 w-[340px] sm:w-[360px] cartoon-panel p-3.5 pointer-events-auto hidden transition-all">
+    <div class="flex items-start justify-between gap-2 mb-2">
+      <div class="flex items-center gap-2.5">
+        <div id="detail-icon-badge" class="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold border-[3px] border-[#d5ad6e] bg-[#fbf3de]">
+          🐉
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span id="detail-ticker" class="font-black text-base text-[#2a4a57] uppercase tracking-wide">MOOND</span>
+            <span id="detail-rank-badge" class="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-gradient-to-b from-[#ffcd47] to-[#f29b0c] text-[#4a2c00] border-2 border-[#d78208]">#1</span>
+            <span id="detail-element-pill" class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300">FIRE</span>
+          </div>
+          <div id="detail-name" class="text-xs text-[#4d6670] font-bold truncate max-w-[200px]">Moon Dragon Token</div>
+        </div>
+      </div>
+      <button id="btn-close-detail" aria-label="Close inspector" class="cartoon-btn w-8 h-8 flex items-center justify-center text-xs font-black !rounded-xl">
+        ✕
+      </button>
+    </div>
+
+    <div class="relative w-full h-40 rounded-2xl bg-[#68c3f0]/30 border-[3px] border-[#e3d1a6] mb-2 overflow-hidden shadow-inner">
+      <div id="inspector-canvas-container" class="absolute inset-0 cursor-grab active:cursor-grabbing" title="Drag to rotate 3D monster"></div>
+
+      <div class="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full bg-[#1f566b] border border-[#d9c593] flex items-center gap-1.5 shadow">
+        <span id="inspector-status-dot" class="w-2 h-2 rounded-full bg-[#43c291] animate-ping"></span>
+        <span id="inspector-action-status" class="text-[9px] font-extrabold text-[#78e063]">Idle</span>
+      </div>
+
+      <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-[#f7edd6] p-0.5 rounded-xl border-2 border-[#e3d1a6]">
+        <button data-view="three_quarter" class="inspector-view-btn px-1.5 py-0.5 rounded-lg text-[9px] font-extrabold bg-[#1f566b] text-white">3/4</button>
+        <button data-view="front" class="inspector-view-btn px-1.5 py-0.5 rounded text-[9px] font-bold text-[#2a4a57]">Front</button>
+        <button data-view="side" class="inspector-view-btn px-1.5 py-0.5 rounded text-[9px] font-bold text-[#2a4a57]">Side</button>
+        <button data-view="back" class="inspector-view-btn px-1.5 py-0.5 rounded text-[9px] font-bold text-[#2a4a57]">Back</button>
+      </div>
+
+      <div class="absolute bottom-0 inset-x-0 z-10 bg-gradient-to-t from-[#f7edd6] via-[#f7edd6]/80 to-transparent px-2.5 pt-3 pb-1 flex items-end justify-between pointer-events-none">
+        <div class="max-w-[70%]">
+          <div class="text-[8px] uppercase tracking-wider text-[#4d6670] font-bold">Current Activity</div>
+          <div id="inspector-activity-desc" class="text-[10px] font-extrabold text-[#2a4a57] leading-tight truncate">
+            Roaming the arena...
+          </div>
+        </div>
+        <div class="text-right">
+          <div id="inspector-hp-text" class="text-[10px] font-extrabold text-[#17674a]">HP 100/100</div>
+          <div id="inspector-speed-text" class="text-[8px] font-bold text-[#4d6670]">Pos: (0, 0)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-full h-3 bg-[#fbf3de] rounded-full overflow-hidden border-2 border-[#d5ad6e] mb-2">
+      <div id="detail-hp-bar-fill" class="h-full bg-gradient-to-r from-[#27996f] to-[#58d3a0] transition-all duration-150" style="width: 100%"></div>
+    </div>
+
+    <div class="hud-well grid grid-cols-2 gap-1.5 text-[10px] p-2.5 mb-2">
+      <div>
+        <span class="text-[#4d6670] block text-[9px] font-bold">Monster Archetype</span>
+        <span id="detail-model-id" class="text-[#2a4a57] font-extrabold">fire_dragon</span>
+      </div>
+      <div>
+        <span class="text-[#4d6670] block text-[9px] font-bold">Attack Style</span>
+        <span id="detail-element-size" class="font-extrabold text-orange-700">🔥 Fire Breath</span>
+      </div>
+      <div>
+        <span class="text-[#4d6670] block text-[9px] font-bold">Pool Reserve</span>
+        <span id="detail-lp" class="text-[#17674a] font-extrabold">52,000 MON</span>
+      </div>
+      <div>
+        <span class="text-[#4d6670] block text-[9px] font-bold">Zone & Status</span>
+        <span id="detail-state-biome" class="text-[#0284c7] font-extrabold">Citadel • Idle</span>
+      </div>
+      <div class="col-span-2 pt-1 border-t border-[#e3d1a6] flex items-center justify-between">
+        <span class="text-[#4d6670] text-[9px] font-bold">Address</span>
+        <span id="detail-token-id" class="text-[9px] text-[#2a4a57] font-mono-num font-bold select-text cursor-pointer">0xfire...agon</span>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between text-[10px] uppercase font-bold text-[#4d6670]">
+      <span id="detail-wins-losses" class="text-[#2a4a57] font-extrabold">Wins: 0</span>
+      <div class="flex items-center gap-1" data-sim-only>
+        <button data-anim="attack" class="anim-preview-btn cartoon-btn px-2 py-0.5 text-[9px]">Attack</button>
+        <button data-anim="victory" class="anim-preview-btn cartoon-btn px-2 py-0.5 text-[9px]">Victory</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="launch-modal" class="modal-overlay fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Launch a coin">
+    <div class="cartoon-panel launch-panel w-full">
+      <div class="modal-head">
+        <div>
+          <h3>Launch Token &amp; Map Monster</h3>
+          <p>Choose how your coin looks in the arena</p>
+        </div>
+        <button id="btn-close-launch" type="button" aria-label="Close launch dialog" class="text-white/80 hover:text-white p-1">✕</button>
+      </div>
+
+      <form id="form-launch-token" class="launch-body launch-grid text-xs">
+        <div class="launch-left">
+          <div id="launch-preview" class="launch-stage" tabindex="0" role="img" aria-label="3D preview of your monster. Drag or use the left and right arrow keys to rotate."></div>
+          <div class="launch-info" aria-live="polite">
+            <div class="flex items-center gap-2 flex-wrap">
+              <strong id="launch-info-name" class="text-sm font-extrabold text-[#2a4a57]">Fire Dragon</strong>
+              <span id="launch-info-element" class="el-pill">Fire</span>
+              <span id="launch-info-skin" class="text-[10px] font-extrabold uppercase tracking-wider text-[#4d6670]">Default skin</span>
+            </div>
+            <p id="launch-info-line" class="text-[11px] font-extrabold text-[#1f566b]"></p>
+            <p id="launch-info-blurb" class="text-[11px] text-[#4d6670] font-semibold"></p>
+          </div>
+        </div>
+
+        <div class="launch-right">
+          <div class="grid grid-cols-3 gap-3">
+            <div class="col-span-2">
+              <label class="launch-label" for="launch-name">Token Name</label>
+              <input id="launch-name" type="text" required maxlength="28" value="Solar Flare Dragon"
+                class="launch-input" />
+            </div>
+            <div>
+              <label class="launch-label" for="launch-ticker">Short Ticker</label>
+              <input id="launch-ticker" type="text" required maxlength="7" value="SOLAR"
+                class="launch-input font-mono-num uppercase text-[#b45309]" />
+            </div>
+          </div>
+
+          <fieldset class="launch-fieldset">
+            <legend class="launch-label">Choose Monster</legend>
+            <div id="launch-monster-picker" class="pick-grid pick-grid-monsters" role="radiogroup" aria-label="Monster"></div>
+            <input type="hidden" id="launch-monster-id" value="fire_dragon" />
+          </fieldset>
+
+          <fieldset class="launch-fieldset">
+            <legend class="launch-label">Choose Skin</legend>
+            <div id="launch-skin-picker" class="pick-grid pick-grid-skins" role="radiogroup" aria-label="Skin"></div>
+            <input type="hidden" id="launch-skin-id" value="default" />
+          </fieldset>
+
+          <div>
+            <label class="launch-label" for="launch-lp">Initial liquidity</label>
+            <input id="launch-lp" type="number" min="1000" max="250000" step="500" value="42000"
+              class="launch-input font-mono-num text-[#1f7a46]" />
+          </div>
+
+          <div class="bg-[#efe0bd] rounded-lg p-2.5 border border-[#e3d1a6]">
+            <div class="text-[10px] uppercase tracking-wider text-[#4d6670] mb-1">On-chain identity</div>
+            <pre id="launch-json-preview" class="font-mono-num text-[10px] text-[#0369a1] overflow-x-auto leading-relaxed"></pre>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-1">
+            <button type="button" id="btn-cancel-launch" class="px-3.5 py-2 rounded-xl cartoon-btn text-[#2a4a57] font-bold">
+              Cancel
+            </button>
+            <button type="submit" class="px-4 py-2 cartoon-btn-green font-extrabold">
+              Launch in the Arena
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="island-stage" class="fixed top-[78px] left-1/2 -translate-x-1/2 z-20 pointer-events-none"></div>
+  <div id="island-lockdown" class="fixed top-[180px] left-1/2 -translate-x-1/2 z-30 pointer-events-none"></div>
+  <div id="island-dock" class="fixed bottom-[104px] left-1/2 -translate-x-1/2 z-20 w-[340px] flex flex-col gap-2 pointer-events-none">
+    <div id="island-toasts"></div>
+    <div id="island-trade"></div>
+    <div id="island-claims"></div>
+  </div>
+  <div id="island-champion"></div>
+
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
