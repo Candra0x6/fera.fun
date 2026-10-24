@@ -1,0 +1,23 @@
+html:not([data-mode='sim']) [data-sim-only] {
+  display: none !important;
+}
+
+html:not([data-mode='sim']):not([data-debug]) [data-debug-only] {
+  display: none !important;
+}
+
+html[data-mode='sim'] [data-chain-only] {
+  display: none !important;
+}
+
+@media (max-height: 1200px) {
+  body:has(#detail-panel:not(.hidden)) #catalog-card {
+    display: none !important;
+  }
+}
+
+@media (max-height: 820px) {
+  #detail-panel .detail-extra {
+    display: none !important;
+  }
+}
