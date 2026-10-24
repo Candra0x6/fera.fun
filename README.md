@@ -1,8 +1,9 @@
 # FERA.FUN on Monad
 
 ![Uploading FERA.FUN Dragon Crest.png…]()
+What if Pump.fun-style token launches became a real-time battle royale?
 
-A real-time on-chain battle royale for coins, built for fun on **Monad testnet (chain id 10143)**. Up to 30 coins live in one shared 3D arena. Every coin is a real ERC-20 with its own bonding curve, all held by one `Arena` contract. Each epoch the arena locks every coin, requests one random seed, then pairs the coins, rolls the clashes, merges each loser into its winner and runs wild-monster hunts for xp. The last coin standing is the **Chosen One** and its holders redeem the prize pool.
+FERA.FUN turns token launches into a PvE battle arena on Monad, where coins spawn, level up, and fight until only one survives. Up to 6 coins compete in a shared 3D arena, where every defeated coin’s liquidity is redistributed to boost the winner, reward defeated holders, and fuel the prize pool. Powered by on-chain game mechanics and random outcomes, FERA.FUN transforms token trading into a competitive experience where every battle changes the game and every round crowns a new potential champion.
 
 > **Testnet play-money.** MON on Monad testnet has no real value. Do not deposit real funds anywhere in this project. The code is not audited and nothing here is legal or financial advice.
 
