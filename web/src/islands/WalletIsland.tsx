@@ -3,8 +3,26 @@ import { explorerAddressUrl } from '../chain/explorer'
 import { formatMonCompact, shortAddress } from '../chain/format'
 import { useStore } from '../chain/store'
 import { connectBurner, connectInjected, disconnect, discoverWallets, isChainOk, requestDrip, switchNetwork, walletStore } from '../chain/wallet'
-import { config } from '../chain/session'
+import { config, replayMode } from '../chain/session'
 import { BTN_GLASS } from './shared'
+
+const AUTO_BURNER_OFF = 'monster-arena.auto-burner-off'
+
+function wantsAutoBurner(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).has('demo') && !replayMode && window.sessionStorage.getItem(AUTO_BURNER_OFF) === null
+  } catch {
+    return false
+  }
+}
+
+function stopAutoBurner(): void {
+  try {
+    window.sessionStorage.setItem(AUTO_BURNER_OFF, '1')
+  } catch {
+    return
+  }
+}
 
 const MENU_ITEM =
   'px-2.5 py-2 rounded-xl bg-[#fbf3de] hover:bg-white border-2 border-[#e3d1a6] text-xs font-bold text-left text-[#2a4a57] transition disabled:opacity-50'
@@ -13,6 +31,9 @@ export function WalletIsland() {
   const wallet = useStore(walletStore)
   const [open, setOpen] = useState(false)
   useEffect(() => discoverWallets(), [])
+  useEffect(() => {
+    if (walletStore.get().status === 'disconnected' && wantsAutoBurner()) void connectBurner()
+  }, [])
 
   if (wallet.status === 'connecting') {
     return (
@@ -67,6 +88,7 @@ export function WalletIsland() {
               className={MENU_ITEM}
               onClick={() => {
                 setOpen(false)
+                stopAutoBurner()
                 disconnect()
               }}
             >
