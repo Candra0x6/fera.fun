@@ -1,0 +1,2995 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "owner_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "coinImplementation_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "reserveFloor_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "abortRound",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "buy",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "minTokensOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "deadline",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "tokensOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "cancelEpoch",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimConsolation",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "monPaid",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimRefund",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "monPaid",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimSeed",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "monPaid",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "coinImplementation",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "createDefaultRound",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "createRound",
+    "inputs": [
+      {
+        "name": "config",
+        "type": "tuple",
+        "internalType": "struct IArena.RoundConfig",
+        "components": [
+          {
+            "name": "maxCoins",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "minCoins",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "lobbySeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "levelingEpochs",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "epochSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "clashesPerEpoch",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "seedTimeoutSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "maxRoundSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "launchFee",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "minSeed",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "maxSeed",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "tradeFeeBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "boostBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "consolationBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "potBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "treasuryBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "consolationMode",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "gammaBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "poolFactorMinBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "poolFactorMaxBps",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "levelBonusBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "elementUpBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "elementDownBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "winProbMinBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "winProbMaxBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "huntWinPct",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "keeperBounty",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "maxEntropyFee",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vMon0",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vTok0",
+            "type": "uint128",
+            "internalType": "uint128"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "currentRoundId",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "defaultConfigSet",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "fundTreasury",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "getArenaSnapshot",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "round",
+        "type": "tuple",
+        "internalType": "struct IArena.RoundView",
+        "components": [
+          {
+            "name": "phase",
+            "type": "uint8",
+            "internalType": "enum IArena.Phase"
+          },
+          {
+            "name": "locked",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "epoch",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "coinCount",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "aliveCount",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "cancelStreak",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "winnerCoinId",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "createdAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "startedAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "lockedAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "lastEpochResolvedAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "entropySeq",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "seed",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "prizePot",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "treasury",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "redeemPool",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "redeemSupply",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "clashesPlayed",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      },
+      {
+        "name": "coins",
+        "type": "tuple[]",
+        "internalType": "struct IArena.CoinView[]",
+        "components": [
+          {
+            "name": "token",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "creator",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "monsterType",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "skinId",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "status",
+            "type": "uint8",
+            "internalType": "enum IArena.Status"
+          },
+          {
+            "name": "level",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "xp",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "wins",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "vMon",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vTok",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "rMon",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "rMonAtLock",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "seedMon",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "consolationPool",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "consolationSupply",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "supply",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "ticker",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getConfig",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IArena.RoundConfig",
+        "components": [
+          {
+            "name": "maxCoins",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "minCoins",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "lobbySeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "levelingEpochs",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "epochSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "clashesPerEpoch",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "seedTimeoutSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "maxRoundSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "launchFee",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "minSeed",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "maxSeed",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "tradeFeeBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "boostBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "consolationBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "potBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "treasuryBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "consolationMode",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "gammaBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "poolFactorMinBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "poolFactorMaxBps",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "levelBonusBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "elementUpBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "elementDownBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "winProbMinBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "winProbMaxBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "huntWinPct",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "keeperBounty",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "maxEntropyFee",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vMon0",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vTok0",
+            "type": "uint128",
+            "internalType": "uint128"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDefaultConfig",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IArena.RoundConfig",
+        "components": [
+          {
+            "name": "maxCoins",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "minCoins",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "lobbySeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "levelingEpochs",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "epochSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "clashesPerEpoch",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "seedTimeoutSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "maxRoundSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "launchFee",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "minSeed",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "maxSeed",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "tradeFeeBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "boostBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "consolationBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "potBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "treasuryBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "consolationMode",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "gammaBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "poolFactorMinBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "poolFactorMaxBps",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "levelBonusBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "elementUpBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "elementDownBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "winProbMinBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "winProbMaxBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "huntWinPct",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "keeperBounty",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "maxEntropyFee",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vMon0",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vTok0",
+            "type": "uint128",
+            "internalType": "uint128"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getRound",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IArena.RoundView",
+        "components": [
+          {
+            "name": "phase",
+            "type": "uint8",
+            "internalType": "enum IArena.Phase"
+          },
+          {
+            "name": "locked",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "epoch",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "coinCount",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "aliveCount",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "cancelStreak",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "winnerCoinId",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "createdAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "startedAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "lockedAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "lastEpochResolvedAt",
+            "type": "uint40",
+            "internalType": "uint40"
+          },
+          {
+            "name": "entropySeq",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "seed",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "prizePot",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "treasury",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "redeemPool",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "redeemSupply",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "clashesPlayed",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "launchCoin",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "ticker",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "monsterType",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "skinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "launchCoinWithImage",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "ticker",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "monsterType",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "skinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "imageUri",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "lockEpoch",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "onSeed",
+    "inputs": [
+      {
+        "name": "seedId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "seed",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "owner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pendingConsolation",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "holder",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "monOwed",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pendingRedeem",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "holder",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "monOwed",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteBuy",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "monIn",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "tokensOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteSell",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "monOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "redeem",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "monPaid",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "refundLaunch",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "reserveFloor",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "resolveEpoch",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "maxClashes",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "seedSource",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "sell",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minMonOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "deadline",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "monOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setDefaultConfig",
+    "inputs": [
+      {
+        "name": "config",
+        "type": "tuple",
+        "internalType": "struct IArena.RoundConfig",
+        "components": [
+          {
+            "name": "maxCoins",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "minCoins",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "lobbySeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "levelingEpochs",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "epochSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "clashesPerEpoch",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "seedTimeoutSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "maxRoundSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "launchFee",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "minSeed",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "maxSeed",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "tradeFeeBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "boostBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "consolationBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "potBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "treasuryBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "consolationMode",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "gammaBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "poolFactorMinBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "poolFactorMaxBps",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "levelBonusBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "elementUpBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "elementDownBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "winProbMinBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "winProbMaxBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "huntWinPct",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "keeperBounty",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "maxEntropyFee",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vMon0",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vTok0",
+            "type": "uint128",
+            "internalType": "uint128"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setSeedSource",
+    "inputs": [
+      {
+        "name": "source",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "startRound",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "Boosted",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "epoch",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "clashId",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "boostMon",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "rMon",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "vMon",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "vTok",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "wins",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "level",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "xpGained",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "xp",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ByeGranted",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "epoch",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ClashResolved",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "epoch",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "clashId",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "winner",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "loser",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "winProbBps",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "roll",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "boost",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "consolation",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "toPot",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "toTreasury",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CoinEliminated",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "consolationPool",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "consolationSupply",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CoinImage",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "imageUri",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CoinLaunched",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "creator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "ticker",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "monsterType",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "skinId",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "seedMon",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "vMon",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "vTok",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "supply",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CoinRefundRate",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "refundPool",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "refundSupply",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ConsolationClaimed",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "holder",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "monPaid",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "EpochCancelled",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "epoch",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "EpochLocked",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "epoch",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "entropySeq",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "aliveMask",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "lockedAt",
+        "type": "uint40",
+        "indexed": false,
+        "internalType": "uint40"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "EpochResolved",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "epoch",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "aliveCount",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FeesSwept",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "epoch",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "toPot",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "toTreasury",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "prizePotAfter",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "treasuryAfter",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "HuntResolved",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "epoch",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "success",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      },
+      {
+        "name": "xpGained",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "xp",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "level",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LevelUp",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "level",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Redeemed",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "holder",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "monPaid",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RefundClaimed",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "holder",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "monPaid",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoundAborted",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "reason",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoundCreated",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "config",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct IArena.RoundConfig",
+        "components": [
+          {
+            "name": "maxCoins",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "minCoins",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "lobbySeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "levelingEpochs",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "epochSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "clashesPerEpoch",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "seedTimeoutSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "maxRoundSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "launchFee",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "minSeed",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "maxSeed",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "tradeFeeBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "boostBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "consolationBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "potBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "treasuryBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "consolationMode",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "gammaBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "poolFactorMinBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "poolFactorMaxBps",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "levelBonusBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "elementUpBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "elementDownBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "winProbMinBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "winProbMaxBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "huntWinPct",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "keeperBounty",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "maxEntropyFee",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vMon0",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "vTok0",
+            "type": "uint128",
+            "internalType": "uint128"
+          }
+        ]
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoundSettled",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "winnerCoinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "redeemPool",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "redeemSupply",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RoundStarted",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "startedAt",
+        "type": "uint40",
+        "indexed": false,
+        "internalType": "uint40"
+      },
+      {
+        "name": "coins",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SeedClaimed",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "creator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "tokens",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "monPaid",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SeedReady",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "epoch",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "seed",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Trade",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "coinId",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "trader",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "isBuy",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      },
+      {
+        "name": "monAmount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "tokenAmount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "rMon",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "vMon",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "vTok",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TreasuryFunded",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "funder",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TreasurySpent",
+    "inputs": [
+      {
+        "name": "roundId",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "kind",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum IArena.TreasuryKind"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "treasuryAfter",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AbortNotOpen",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadCatalogId",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadCoinLimits",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadCombatParams",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadCurveParams",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadFee",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadImage",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadName",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadSeed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadSeedBounds",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadSplit",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadTicker",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BadTiming",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "CancelCapReached",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "CoinNotAlive",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "CreatorCapReached",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "EpochTooEarly",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Expired",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "FailedDeployment",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Insolvent",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InsufficientBalance",
+    "inputs": [
+      {
+        "name": "balance",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "needed",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "LobbyFilled",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "LobbyNotReady",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "LobbyStillOpen",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Locked",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "MinOutRequired",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoDefaultConfig",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoSeedSource",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotClaimable",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotCreator",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotLocked",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotOwner",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotRefundable",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotSeedSource",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NothingToClaim",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "PayFailed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ReserveFloorBreached",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ReserveNotFunded",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "RoundFull",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "RoundInProgress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "RoundNotFundable",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SafeCastOverflowedIntToUint",
+    "inputs": [
+      {
+        "name": "value",
+        "type": "int256",
+        "internalType": "int256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "SafeCastOverflowedUintDowncast",
+    "inputs": [
+      {
+        "name": "bits",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "value",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "SafeCastOverflowedUintToInt",
+    "inputs": [
+      {
+        "name": "value",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "SeedAlreadyClaimed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SeedArrived",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SeedNotReady",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Slippage",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TimeoutNotElapsed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TreasuryTooLow",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnknownRound",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "WrongPhase",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroMaxClashes",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroOut",
+    "inputs": []
+  }
+]

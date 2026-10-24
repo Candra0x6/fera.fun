@@ -1,0 +1,18 @@
+{
+  "monsters": [
+    { "monsterType": 0, "key": "fire_dragon", "name": "Fire Dragon", "element": "fire", "baseStat": 10000 },
+    { "monsterType": 1, "key": "ice_wolf", "name": "Ice Wolf", "element": "ice", "baseStat": 10000 },
+    { "monsterType": 2, "key": "earth_golem", "name": "Earth Golem", "element": "earth", "baseStat": 10000 },
+    { "monsterType": 3, "key": "electric_fox", "name": "Electric Fox", "element": "electric", "baseStat": 10000 },
+    { "monsterType": 4, "key": "dark_spirit", "name": "Dark Spirit", "element": "dark", "baseStat": 10000 }
+  ],
+  "skins": [
+    { "skinId": 0, "key": "default", "name": "Default" },
+    { "skinId": 1, "key": "obsidian", "name": "Obsidian" },
+    { "skinId": 2, "key": "royal", "name": "Gold" },
+    { "skinId": 3, "key": "crystal", "name": "Azure" },
+    { "skinId": 4, "key": "celestial", "name": "Mythic" }
+  ],
+  "elementCycle": ["fire", "ice", "earth", "electric", "dark"],
+  "elementMultipliers": { "upBps": 11500, "downBps": 8700, "neutralBps": 10000 }
+}

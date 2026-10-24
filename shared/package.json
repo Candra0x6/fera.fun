@@ -1,0 +1,28 @@
+{
+  "name": "@animal/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./catalog.json": "./catalog.json",
+    "./house-coins.json": "./house-coins.json",
+    "./fixtures/arena-replay.json": "./fixtures/arena-replay.json"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "node scripts/lint.mjs .",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "sync-abi": "node scripts/sync-abi.mjs",
+    "generate-fixture": "tsx scripts/generate-fixture.mjs"
+  },
+  "dependencies": {
+    "viem": "2.57.7"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}
