@@ -56,7 +56,7 @@ library Presets {
         c = lite();
         c.minCoins = 6;
         c.maxCoins = 6;
-        c.lobbySeconds = 600;
+        c.lobbySeconds = 10_800;
         c.levelingEpochs = 1;
         c.epochSeconds = 14;
         c.clashesPerEpoch = 2;

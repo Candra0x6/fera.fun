@@ -315,7 +315,7 @@ flowchart LR
 | Parameter | blitz (deployed default) | lite | demo | standard |
 |---|---|---|---|---|
 | Coins max / min | 6 / 6 | 6 / 5 | 30 / 8 | 30 / 12 |
-| Lobby | 600 s, starts as soon as it is full (6 coins) | 3600 s | 120 s | 900 s |
+| Lobby | 3 h (10800 s), starts as soon as it is full (6 coins) | 3600 s | 120 s | 900 s |
 | Leveling epochs | 1 | 3 | 3 | 10 |
 | Epoch spacing | 14 s | 30 s | 20 s | 60 s |
 | Clashes per epoch | 2 | 3 | 6 | 4 |
@@ -618,7 +618,7 @@ vercel link --project fera-fun --yes && vercel deploy --prebuilt --prod --yes
 
 The demo token ends up in the public bundle by design; it only protects testnet funds. `shared/house-coins.json` must hold the addresses of the current house wallets (the keeper's `seed-house` script rewrites it), otherwise house coins are not labelled **House**.
 
-**4. Smoke test.** Open `https://fera-fun.vercel.app/?demo`, press **Create Lobby**, then **Seed 5 Animals** within the 10-minute lobby window. The round should reach Settled by itself in about a minute. The same flow through the API: `POST /demo/create-round` and `POST /demo/seed-house` with the `x-demo-token` header.
+**4. Smoke test.** Open `https://fera-fun.vercel.app/?demo`, press **Create Lobby**, then **Seed 5 Animals** within the 3-hour lobby window. The round should reach Settled by itself in about a minute. The same flow through the API: `POST /demo/create-round` and `POST /demo/seed-house` with the `x-demo-token` header.
 
 **Known issues.** Deplexo shows its own "App unavailable" page for any 5xx from the keeper, so the real cause is in the runtime logs (`GET /apps/<appId>/logs/runtime`). A lobby that stays empty for `lobbySeconds` is aborted by the keeper; create a new one. The Arena treasury only grows through carry-over, so older deployments keep their floor locked.
 

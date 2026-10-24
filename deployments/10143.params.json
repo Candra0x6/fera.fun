@@ -13,7 +13,7 @@
   "launchFee": 100000000000000000,
   "levelBonusBps": 400,
   "levelingEpochs": 1,
-  "lobbySeconds": 600,
+  "lobbySeconds": 10800,
   "maxCoins": 6,
   "maxEntropyFee": 200000000000000000,
   "maxRoundSeconds": 3600,
