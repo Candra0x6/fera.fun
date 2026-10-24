@@ -1,0 +1,30 @@
+{
+  "name": "keeper",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "node ../shared/scripts/lint.mjs .",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "start": "tsx src/main.ts",
+    "seed-house": "tsx scripts/seed-house.ts",
+    "force-start": "tsx scripts/force-start.ts",
+    "deliver-mock-seed": "tsx scripts/deliver-mock-seed.ts"
+  },
+  "dependencies": {
+    "@animal/shared": "workspace:*",
+    "@hono/node-server": "2.1.5",
+    "hono": "4.13.13",
+    "pino": "10.4.0",
+    "viem": "2.57.7",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

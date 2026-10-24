@@ -1,0 +1,16 @@
+FROM node:24-slim AS build
+RUN corepack enable
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile --filter keeper...
+RUN E=$(ls -d node_modules/.pnpm/esbuild@*/node_modules/esbuild/bin/esbuild | head -1) \
+ && "$E" keeper/src/main.ts --bundle --platform=node --format=esm --target=node24 \
+    --banner:js="import {createRequire as __cr} from 'node:module'; const require = __cr(import.meta.url);" \
+    --outfile=/out/keeper.mjs --log-level=warning
+
+FROM node:24-slim
+WORKDIR /app
+COPY --from=build /out/keeper.mjs ./keeper.mjs
+ENV NODE_ENV=production NODE_OPTIONS=--max-old-space-size=96
+USER node
+CMD ["node", "keeper.mjs"]

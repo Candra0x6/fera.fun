@@ -1,0 +1,14 @@
+.git
+node_modules
+**/node_modules
+**/dist
+.env*
+!.env.example
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+docs
+sim
+web/parity
+*.log
