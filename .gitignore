@@ -11,3 +11,4 @@ contracts/broadcast
 .cursor
 .mcp.json
 contracts/foundry-pp
+.vercel
