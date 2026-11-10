@@ -14,8 +14,15 @@ curve() {
   "$tsx" "$here/gen/curve.ts" merge
 }
 
+combat() {
+  "$tsx" "$here/gen/combat.ts" inputs
+  (cd "$here/forge" && flock "$lock" forge script script/GenCombat.s.sol --silent)
+  "$tsx" "$here/gen/combat.ts" merge
+}
+
 case "${1:-all}" in
   curve) curve ;;
-  all) curve ;;
-  *) echo "usage: run.sh curve" >&2; exit 2 ;;
+  combat) combat ;;
+  all) curve; combat ;;
+  *) echo "usage: run.sh curve|combat|all" >&2; exit 2 ;;
 esac
