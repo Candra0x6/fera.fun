@@ -1,60 +1,60 @@
-import { isAddress, parseEther } from 'viem'
 import { z } from 'zod'
-import { MONAD_TESTNET_HTTP_URLS, MONAD_TESTNET_WS_URLS } from '@animal/shared'
-import type { Hex } from '@animal/shared'
+import type { KeyPairString } from 'near-api-js'
+import { DEFAULT_TESTNET_RPC_URLS } from './nearTransport'
 
-const privateKey = z.string().regex(/^0x[0-9a-fA-F]{64}$/, 'must be a 32-byte hex string')
-const address = z.string().refine((value) => isAddress(value, { strict: false }), 'must be an address')
+const secretKey = z.string().regex(/^ed25519:[1-9A-HJ-NP-Za-km-z]{80,90}$/, 'must be an ed25519 secret key')
+const accountId = z.string().regex(/^[a-z0-9._-]{2,64}$/, 'must be a NEAR account id')
 const wholeNumber = z.string().regex(/^\d+$/, 'must be a non-negative integer')
-const decimalAmount = z.string().regex(/^\d+(\.\d{1,18})?$/, 'must be a decimal amount of MON')
+const decimalAmount = z.string().regex(/^\d+(\.\d{1,24})?$/, 'must be a decimal amount of NEAR')
 
 const envSchema = z.object({
-  RPC_HTTP_URL: z.url().optional(),
-  RPC_WS_URL: z.string().regex(/^wss?:\/\//, 'must be a ws or wss url').optional(),
-  ARENA_ADDRESS: address.optional(),
-  DEPLOY_BLOCK: wholeNumber.optional(),
-  ROUND_ID: wholeNumber.optional(),
-  KEEPER_PRIVATE_KEY: privateKey.optional(),
-  DRIP_PRIVATE_KEY: privateKey.optional(),
-  SEEDER_PRIVATE_KEY: privateKey.optional(),
-  HOUSE_MNEMONIC: z.string().min(1).optional(),
+  NEAR_NETWORK: z.literal('testnet').optional(),
+  NEAR_RPC_URLS: z.string().min(1).optional(),
+  ARENA_ACCOUNT_ID: accountId.optional(),
+  KEEPER_ACCOUNT_ID: accountId.optional(),
+  KEEPER_PRIVATE_KEY: secretKey.optional(),
+  DRIP_ACCOUNT_ID: accountId.optional(),
+  DRIP_PRIVATE_KEY: secretKey.optional(),
+  SEEDER_ACCOUNT_ID: accountId.optional(),
+  SEEDER_PRIVATE_KEY: secretKey.optional(),
+  HOUSE_SEED: z.string().min(8).optional(),
+  HELPER_URL: z.url().optional(),
+  DRIP_AMOUNT_NEAR: decimalAmount.optional(),
   ALLOWED_ORIGIN: z.string().min(1).optional(),
   PORT: wholeNumber.optional(),
   CLASH_MAX_PER_RESOLVE: wholeNumber.optional(),
   DEMO_FAST: z.string().optional(),
-  DRIP_AMOUNT_MON: decimalAmount.optional(),
   DEMO_ADMIN_TOKEN: z.string().min(1).optional(),
-  OWNER_PRIVATE_KEY: privateKey.optional(),
-  DEMO_CREATE_KEY: z.enum(['seeder', 'keeper']).optional(),
   LOBBY_SECONDS: wholeNumber.optional(),
-  HOUSE_GAS_BUFFER: decimalAmount.optional()
+  ROUND_ID: wholeNumber.optional()
 })
 
 export interface Deployment {
   arena?: string
-  deployBlock?: number
+  deployHeight?: number
 }
 
 export interface KeeperConfig {
-  httpUrls: string[]
-  wsUrls: string[]
-  arena: Hex
-  deployBlock: number
+  network: 'testnet'
+  rpcUrls: string[]
+  arena: string
+  deployHeight: number
   roundId: number | null
-  keeperKey: Hex | null
-  dripKey: Hex | null
-  seederKey: Hex | null
-  houseMnemonic: string | null
+  keeperAccountId: string
+  keeperKey: KeyPairString | null
+  dripAccountId: string
+  dripKey: KeyPairString | null
+  seederAccountId: string
+  seederKey: KeyPairString | null
+  houseSeed: string | null
+  helperUrl: string
+  dripAmount: bigint
   allowedOrigin: string | null
   port: number
   clashMaxPerResolve: number
   demoFast: boolean
-  dripAmount: bigint
   demoAdminToken: string | null
-  ownerKey: Hex | null
-  demoCreateKey: 'seeder' | 'keeper'
   lobbySeconds: number
-  houseGasBuffer: bigint
 }
 
 export class ConfigError extends Error {
@@ -67,7 +67,14 @@ export class ConfigError extends Error {
   }
 }
 
-export type Requirement = 'keeperKey' | 'dripKey' | 'seederKey' | 'arena'
+export type Requirement = 'keeperKey' | 'dripKey' | 'seederKey'
+
+const YOCTO_DECIMALS = 24
+
+export function nearToYoctoAmount(text: string): bigint {
+  const [whole = '0', fraction = ''] = text.split('.')
+  return BigInt(whole) * 10n ** BigInt(YOCTO_DECIMALS) + BigInt(fraction.padEnd(YOCTO_DECIMALS, '0'))
+}
 
 function truthy(value: string | undefined): boolean {
   return value !== undefined && ['1', 'true', 'yes', 'on'].includes(value.toLowerCase())
@@ -90,8 +97,7 @@ export function loadConfig(
   }
   const v = parsed.data
   const problems: string[] = []
-  const arenaText = v.ARENA_ADDRESS ?? deployment?.arena
-  const keys: Record<Exclude<Requirement, 'arena'>, string | undefined> = {
+  const keys: Record<Requirement, string | undefined> = {
     keeperKey: v.KEEPER_PRIVATE_KEY,
     dripKey: v.DRIP_PRIVATE_KEY,
     seederKey: v.SEEDER_PRIVATE_KEY
@@ -99,53 +105,47 @@ export function loadConfig(
   const names: Record<Requirement, string> = {
     keeperKey: 'KEEPER_PRIVATE_KEY',
     dripKey: 'DRIP_PRIVATE_KEY',
-    seederKey: 'SEEDER_PRIVATE_KEY',
-    arena: 'ARENA_ADDRESS'
+    seederKey: 'SEEDER_PRIVATE_KEY'
   }
   for (const need of required) {
-    const present = need === 'arena' ? arenaText !== undefined : keys[need] !== undefined
-    if (!present) problems.push(`${names[need]} is required`)
+    if (keys[need] === undefined) problems.push(`${names[need]} is required`)
   }
   const clash = v.CLASH_MAX_PER_RESOLVE === undefined ? 255 : Number(v.CLASH_MAX_PER_RESOLVE)
   if (clash < 1 || clash > 255) problems.push('CLASH_MAX_PER_RESOLVE: must be between 1 and 255')
-  const lobbySeconds = v.LOBBY_SECONDS === undefined ? 3600 : Number(v.LOBBY_SECONDS)
+  const lobbySeconds = v.LOBBY_SECONDS === undefined ? 10800 : Number(v.LOBBY_SECONDS)
   if (lobbySeconds < 1 || lobbySeconds > 4_294_967_295) problems.push('LOBBY_SECONDS: must be between 1 and 4294967295')
   if (problems.length > 0) throw new ConfigError(problems)
-  const asKey = (value: string | undefined): Hex | null => (value === undefined ? null : (value as Hex))
-  const httpUrls = v.RPC_HTTP_URL === undefined ? [...MONAD_TESTNET_HTTP_URLS] : [v.RPC_HTTP_URL]
-  const wsUrls = v.RPC_WS_URL === undefined ? [...MONAD_TESTNET_WS_URLS] : [v.RPC_WS_URL]
+  const asKey = (value: string | undefined): KeyPairString | null => (value === undefined ? null : (value as KeyPairString))
+  const rpcUrls =
+    v.NEAR_RPC_URLS === undefined
+      ? [...DEFAULT_TESTNET_RPC_URLS]
+      : v.NEAR_RPC_URLS.split(',').map((url) => url.trim()).filter((url) => url.length > 0)
   return {
-    httpUrls,
-    wsUrls,
-    arena: (arenaText ?? '0x0000000000000000000000000000000000000000') as Hex,
-    deployBlock: v.DEPLOY_BLOCK !== undefined ? Number(v.DEPLOY_BLOCK) : (deployment?.deployBlock ?? 0),
+    network: v.NEAR_NETWORK ?? 'testnet',
+    rpcUrls,
+    arena: v.ARENA_ACCOUNT_ID ?? deployment?.arena ?? 'fera-arena.testnet',
+    deployHeight: deployment?.deployHeight ?? 0,
     roundId: v.ROUND_ID === undefined ? null : Number(v.ROUND_ID),
+    keeperAccountId: v.KEEPER_ACCOUNT_ID ?? 'fera-keeper.testnet',
     keeperKey: asKey(v.KEEPER_PRIVATE_KEY),
+    dripAccountId: v.DRIP_ACCOUNT_ID ?? 'fera-drip.testnet',
     dripKey: asKey(v.DRIP_PRIVATE_KEY),
+    seederAccountId: v.SEEDER_ACCOUNT_ID ?? 'fera-seeder.testnet',
     seederKey: asKey(v.SEEDER_PRIVATE_KEY),
-    houseMnemonic: v.HOUSE_MNEMONIC ?? null,
+    houseSeed: v.HOUSE_SEED ?? null,
+    helperUrl: v.HELPER_URL ?? 'https://helper.nearprotocol.com',
+    dripAmount: nearToYoctoAmount(v.DRIP_AMOUNT_NEAR ?? '2'),
     allowedOrigin: v.ALLOWED_ORIGIN ?? null,
     port: v.PORT === undefined ? 8787 : Number(v.PORT),
     clashMaxPerResolve: clash,
     demoFast: truthy(v.DEMO_FAST),
-    dripAmount: parseEther(v.DRIP_AMOUNT_MON ?? '5'),
     demoAdminToken: v.DEMO_ADMIN_TOKEN ?? null,
-    ownerKey: asKey(v.OWNER_PRIVATE_KEY),
-    demoCreateKey: v.DEMO_CREATE_KEY ?? 'seeder',
-    lobbySeconds: lobbySeconds,
-    houseGasBuffer: parseEther(v.HOUSE_GAS_BUFFER ?? '0.5')
+    lobbySeconds
   }
 }
 
 export function secretsOf(config: KeeperConfig): string[] {
-  return [
-    config.keeperKey,
-    config.dripKey,
-    config.seederKey,
-    config.ownerKey,
-    config.houseMnemonic,
-    config.demoAdminToken
-  ].filter(
+  return [config.keeperKey, config.dripKey, config.seederKey, config.houseSeed, config.demoAdminToken].filter(
     (value): value is string => value !== null
   )
 }

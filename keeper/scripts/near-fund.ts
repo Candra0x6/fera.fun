@@ -26,7 +26,7 @@ function loadKey(accountId: string): KeyPairString {
 
 async function exists(accountId: string): Promise<boolean> {
   try {
-    await provider.viewAccount({ accountId, finality: 'final' })
+    await provider.viewAccount({ accountId, blockQuery: { finality: 'final' } })
     return true
   } catch {
     return false
@@ -70,7 +70,7 @@ async function ensureThrowaway(accountId: string): Promise<void> {
   throw new Error(`${accountId} did not appear on chain`)
 }
 
-async function transfer(from: string, to: string, near: string): Promise<void> {
+async function transfer(from: string, to: string, near: `${number}`): Promise<void> {
   const account = new Account(from, provider, loadKey(from))
   await account.signAndSendTransaction({
     receiverId: to,

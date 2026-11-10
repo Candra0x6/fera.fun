@@ -1,4 +1,3 @@
-import { seedArrived } from './port'
 import type { ArenaPort, KeeperCall, RoundParams, RoundState, SendResult } from './port'
 
 export interface LoopLogger {
@@ -24,7 +23,6 @@ export type TickAction =
   | 'startRound'
   | 'lockEpoch'
   | 'resolveEpoch'
-  | 'cancelEpoch'
   | 'abortRound'
   | 'finished'
 
@@ -36,8 +34,6 @@ export interface TickOutcome {
 }
 
 export type LoopResult = 'settled' | 'aborted' | 'stopped'
-
-const ABORT_AFTER_CANCELS = 3
 
 export function knockoutEpochs(coins: number, clashesPerEpoch: number): number {
   let left = coins
@@ -56,7 +52,6 @@ export function createKeeperLoop(options: LoopOptions) {
   let params: RoundParams | null = null
   let lockSeen: { epoch: number; lockedAt: number } | null = null
   let underfilledLogged = false
-  let treasuryLogged = false
 
   async function loadParams(): Promise<RoundParams> {
     if (params === null) params = await port.readParams(roundId)
@@ -118,18 +113,6 @@ export function createKeeperLoop(options: LoopOptions) {
       const deadline = round.createdAt + p.lobbySeconds
       const full = round.coinCount >= p.maxCoins
       if (round.coinCount >= p.minCoins && (full || now >= deadline)) {
-        const planned = p.levelingEpochs + knockoutEpochs(round.coinCount, p.clashesPerEpoch)
-        const needed = (await port.readReserveFloor()) + BigInt(planned) * p.maxEntropyFee
-        if (round.treasury < needed) {
-          if (!treasuryLogged) {
-            treasuryLogged = true
-            log.warn(
-              { roundId, treasury: round.treasury.toString(), needed: needed.toString(), plannedEpochs: planned },
-              'treasury does not cover the planned epochs, fund it with fundTreasury'
-            )
-          }
-          return outcome('wait', round, null, 'treasury too low to start')
-        }
         return outcome('startRound', round, await submit({ fn: 'startRound', roundId }, round))
       }
       if (now >= deadline && round.coinCount < p.minCoins) {
@@ -143,7 +126,7 @@ export function createKeeperLoop(options: LoopOptions) {
     }
 
     if (!round.locked) {
-      if (round.cancelStreak >= ABORT_AFTER_CANCELS || now >= round.startedAt + p.maxRoundSeconds) {
+      if (now >= round.startedAt + p.maxRoundSeconds) {
         return outcome('abortRound', round, await submit({ fn: 'abortRound', roundId }, round))
       }
       const base = round.lastEpochResolvedAt > 0 ? round.lastEpochResolvedAt : round.startedAt
@@ -156,17 +139,13 @@ export function createKeeperLoop(options: LoopOptions) {
     if (lockSeen === null || lockSeen.lockedAt !== round.lockedAt) {
       lockSeen = { epoch: round.epoch, lockedAt: round.lockedAt }
     }
-    if (seedArrived(round)) {
+    const height = await port.latestHeight()
+    if (height >= round.lockHeight + p.minSeedBlocks) {
       const sent = await submit({ fn: 'resolveEpoch', roundId, maxClashes: options.maxClashes }, round)
       if (sent.kind === 'mined' && sent.status === 'success') await reportResolved(round, sent)
       return outcome('resolveEpoch', round, sent)
     }
-    if (now >= round.lockedAt + p.seedTimeoutSeconds) {
-      const fresh = await port.readRound(roundId)
-      if (!fresh.locked || seedArrived(fresh)) return outcome('wait', fresh, null, 'seed arrived before the watchdog fired')
-      return outcome('cancelEpoch', fresh, await submit({ fn: 'cancelEpoch', roundId }, fresh))
-    }
-    return outcome('wait', round, null, `waiting for the seed, timeout in ${round.lockedAt + p.seedTimeoutSeconds - now}s`)
+    return outcome('wait', round, null, `waiting for block ${round.lockHeight + p.minSeedBlocks}, head ${height}`)
   }
 
   async function run(shouldStop: () => boolean): Promise<LoopResult> {

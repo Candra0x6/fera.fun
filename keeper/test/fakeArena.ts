@@ -1,19 +1,14 @@
-import type { Hex } from '@animal/shared'
-import { ZERO_SEED } from '../src/port'
 import type { ArenaPort, KeeperCall, RoundParams, RoundState, SendResult } from '../src/port'
 
-export const SEED: Hex = `0x${'ab'.repeat(32)}`
-
 export const DEFAULT_PARAMS: RoundParams = {
-  minCoins: 8,
-  maxCoins: 30,
+  minCoins: 6,
+  maxCoins: 6,
   lobbySeconds: 120,
-  levelingEpochs: 3,
-  epochSeconds: 20,
-  seedTimeoutSeconds: 60,
+  levelingEpochs: 1,
+  epochSeconds: 14,
   maxRoundSeconds: 3600,
-  clashesPerEpoch: 6,
-  maxEntropyFee: 10n ** 18n
+  clashesPerEpoch: 2,
+  minSeedBlocks: 3
 }
 
 export function baseRound(patch: Partial<RoundState> = {}): RoundState {
@@ -21,36 +16,32 @@ export function baseRound(patch: Partial<RoundState> = {}): RoundState {
     phase: 'Lobby',
     locked: false,
     epoch: 0,
-    coinCount: 10,
-    aliveCount: 10,
-    cancelStreak: 0,
+    coinCount: 6,
+    aliveCount: 6,
     createdAt: 1000,
     startedAt: 0,
     lockedAt: 0,
     lastEpochResolvedAt: 0,
-    entropySeq: 0n,
-    seed: ZERO_SEED,
-    treasury: 40n * 10n ** 18n,
+    lockHeight: 0,
+    treasury: 0n,
     ...patch
   }
 }
 
 export class FakeArena implements ArenaPort {
-  readonly account: Hex = '0x00000000000000000000000000000000000000ee'
+  readonly account = 'fera-keeper.testnet'
   readonly calls: KeeperCall[] = []
   readonly sent: Array<{ call: KeeperCall; result: SendResult }> = []
   now = 1000
+  height = 5000
   resolved = 0
   settleAfter = 99
-  seedDelaySeconds: number | null = 3
   blockTimestampOffset = 0
   forceResultStatus: 'success' | 'reverted' = 'success'
   inFlight = 0
   maxInFlight = 0
   readHook: ((reads: number) => void) | null = null
   private reads = 0
-  private seq = 0n
-  private lockAt = 0
 
   constructor(public round: RoundState = baseRound(), readonly params: RoundParams = DEFAULT_PARAMS) {}
 
@@ -58,12 +49,6 @@ export class FakeArena implements ArenaPort {
     this.reads += 1
     this.readHook?.(this.reads)
     return Promise.resolve({ ...this.round })
-  }
-
-  reserveFloor = 10n * 10n ** 18n
-
-  readReserveFloor(): Promise<bigint> {
-    return Promise.resolve(this.reserveFloor)
   }
 
   readParams(): Promise<RoundParams> {
@@ -74,15 +59,13 @@ export class FakeArena implements ArenaPort {
     return Promise.resolve(this.now)
   }
 
-  advance(seconds: number): void {
-    this.now += seconds
-    if (this.round.locked && this.seedDelaySeconds !== null && this.round.seed === ZERO_SEED && this.now >= this.lockAt + this.seedDelaySeconds) {
-      this.round = { ...this.round, seed: SEED }
-    }
+  latestHeight(): Promise<number> {
+    return Promise.resolve(this.height)
   }
 
-  deliverSeed(): void {
-    this.round = { ...this.round, seed: SEED }
+  advance(seconds: number): void {
+    this.now += seconds
+    this.height += seconds
   }
 
   private guard(call: KeeperCall): string | null {
@@ -91,20 +74,20 @@ export class FakeArena implements ArenaPort {
     switch (call.fn) {
       case 'startRound': {
         const ready = r.coinCount >= p.maxCoins || (this.now >= r.createdAt + p.lobbySeconds && r.coinCount >= p.minCoins)
-        return r.phase === 'Lobby' && ready ? null : 'NotReady'
+        return r.phase === 'Lobby' && ready ? null : 'LobbyNotReady'
       }
       case 'lockEpoch': {
         const base = r.lastEpochResolvedAt > 0 ? r.lastEpochResolvedAt : r.startedAt
-        return (r.phase === 'Leveling' || r.phase === 'Knockout') && !r.locked && this.now >= base + p.epochSeconds ? null : 'BadTiming'
+        return (r.phase === 'Leveling' || r.phase === 'Knockout') && !r.locked && this.now >= base + p.epochSeconds ? null : 'EpochTooEarly'
       }
       case 'resolveEpoch':
-        return r.locked && r.seed !== ZERO_SEED ? null : 'NoSeed'
-      case 'cancelEpoch':
-        return r.locked && r.seed === ZERO_SEED && this.now >= r.lockedAt + p.seedTimeoutSeconds ? null : 'CannotCancel'
+        if (!r.locked) return 'NotLocked'
+        return this.height >= r.lockHeight + p.minSeedBlocks ? null : 'SeedBlockNotReached'
       case 'abortRound':
-        return r.cancelStreak >= 3 || (r.phase === 'Lobby' && this.now >= r.createdAt + p.lobbySeconds && r.coinCount < p.minCoins)
+        return (r.phase === 'Lobby' && this.now >= r.createdAt + p.lobbySeconds && r.coinCount < p.minCoins) ||
+          (r.startedAt > 0 && this.now >= r.startedAt + p.maxRoundSeconds)
           ? null
-          : 'CannotAbort'
+          : 'AbortNotOpen'
     }
   }
 
@@ -126,23 +109,16 @@ export class FakeArena implements ArenaPort {
         this.round = { ...r, phase: 'Leveling', startedAt: this.now, aliveCount: r.coinCount }
         break
       case 'lockEpoch':
-        this.seq += 1n
-        this.lockAt = this.now
-        this.round = { ...r, locked: true, epoch: this.resolved + 1, lockedAt: this.now, entropySeq: this.seq, seed: ZERO_SEED }
+        this.round = { ...r, locked: true, epoch: this.resolved + 1, lockedAt: this.now, lockHeight: this.height }
         break
       case 'resolveEpoch':
         this.resolved += 1
         this.round = {
           ...r,
           locked: false,
-          seed: ZERO_SEED,
           lastEpochResolvedAt: this.now,
-          cancelStreak: 0,
           phase: this.resolved >= this.settleAfter ? 'Settled' : this.resolved >= this.params.levelingEpochs ? 'Knockout' : 'Leveling'
         }
-        break
-      case 'cancelEpoch':
-        this.round = { ...r, locked: false, cancelStreak: r.cancelStreak + 1 }
         break
       case 'abortRound':
         this.round = { ...r, phase: 'Aborted' }
@@ -150,7 +126,7 @@ export class FakeArena implements ArenaPort {
     }
     const result: SendResult = {
       kind: 'mined',
-      hash: `0x${(this.sent.length + 1).toString(16).padStart(64, '0')}`,
+      hash: `tx${(this.sent.length + 1).toString().padStart(8, '0')}`,
       status: this.forceResultStatus,
       gasUsed: 123_456n,
       gasLimit: 150_000n,

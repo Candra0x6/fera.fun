@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { generatePrivateKey } from 'viem/accounts'
+import { KeyPair } from 'near-api-js'
 import { createLogger } from '../src/logger'
 import { createRedactor, describeError } from '../src/redact'
 
@@ -54,5 +55,19 @@ describe('secret redaction', () => {
     const redact = createRedactor([key, 'abc'])
     expect(describeError(new Error(`bad key ${key}`), redact)).toBe('bad key [redacted]')
     expect(describeError('plain abc text', redact)).toBe('plain abc text')
+  })
+
+  it('masks an ed25519 secret key even when it is not a configured secret', () => {
+    const near = KeyPair.fromRandom('ed25519')
+    const secretKey = near.toString()
+    const publicKey = near.getPublicKey().toString()
+    const { log, text } = capture([])
+    log.info(`signing with ${secretKey}`)
+    log.error({ detail: `failed ${secretKey} again` }, 'tx failed')
+    log.info({ publicKey }, 'account key')
+    expect(text()).not.toContain(secretKey)
+    expect(text()).not.toContain(secretKey.slice(8))
+    expect(text()).toContain('[redacted]')
+    expect(text()).toContain(publicKey)
   })
 })

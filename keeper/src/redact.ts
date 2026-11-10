@@ -1,5 +1,7 @@
 export const REDACTED = '[redacted]'
 
+const NEAR_SECRET_KEY = /ed25519:[1-9A-HJ-NP-Za-km-z]{80,90}/g
+
 export interface TextSink {
   write(chunk: string): void
 }
@@ -22,6 +24,7 @@ export function createRedactor(secrets: readonly string[]): (text: string) => st
   return (text) => {
     let out = text
     for (const pattern of patterns) out = out.replace(pattern, REDACTED)
+    out = out.replace(NEAR_SECRET_KEY, REDACTED)
     return out
   }
 }

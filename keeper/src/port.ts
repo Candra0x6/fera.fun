@@ -1,5 +1,3 @@
-import type { Hex } from '@animal/shared'
-
 export type RoundPhase = 'None' | 'Lobby' | 'Leveling' | 'Knockout' | 'Settled' | 'Aborted'
 
 export interface RoundState {
@@ -8,13 +6,11 @@ export interface RoundState {
   epoch: number
   coinCount: number
   aliveCount: number
-  cancelStreak: number
   createdAt: number
   startedAt: number
   lockedAt: number
   lastEpochResolvedAt: number
-  entropySeq: bigint
-  seed: Hex
+  lockHeight: number
   treasury: bigint
 }
 
@@ -24,23 +20,21 @@ export interface RoundParams {
   lobbySeconds: number
   levelingEpochs: number
   epochSeconds: number
-  seedTimeoutSeconds: number
   maxRoundSeconds: number
   clashesPerEpoch: number
-  maxEntropyFee: bigint
+  minSeedBlocks: number
 }
 
 export type KeeperCall =
   | { fn: 'startRound'; roundId: number }
   | { fn: 'lockEpoch'; roundId: number }
   | { fn: 'resolveEpoch'; roundId: number; maxClashes: number }
-  | { fn: 'cancelEpoch'; roundId: number }
   | { fn: 'abortRound'; roundId: number }
 
 export type SendResult =
   | {
       kind: 'mined'
-      hash: Hex
+      hash: string
       status: 'success' | 'reverted'
       gasUsed: bigint
       gasLimit: bigint
@@ -49,16 +43,10 @@ export type SendResult =
   | { kind: 'skipped'; reason: string }
 
 export interface ArenaPort {
-  readonly account: Hex
+  readonly account: string
   readRound(roundId: number): Promise<RoundState>
   readParams(roundId: number): Promise<RoundParams>
-  readReserveFloor(): Promise<bigint>
   latestTimestamp(): Promise<number>
+  latestHeight(): Promise<number>
   send(call: KeeperCall): Promise<SendResult>
-}
-
-export const ZERO_SEED: Hex = `0x${'0'.repeat(64)}`
-
-export function seedArrived(round: RoundState): boolean {
-  return round.seed !== ZERO_SEED && /[1-9a-fA-F]/.test(round.seed.slice(2))
 }
