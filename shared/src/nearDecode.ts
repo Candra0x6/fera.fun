@@ -1,4 +1,5 @@
 import { EVENT_ARG_NAMES, envelopeId, isEventName } from './events'
+import { isHouseCreator } from './houseCoins'
 import type { ArenaEventEnvelope, ArenaSnapshot, CoinStatus, CommitState, CoinView, Phase, RoundView } from './types'
 
 export class NearDecodeError extends Error {
@@ -90,11 +91,12 @@ function decodeRound(value: unknown): RoundView {
 function decodeCoin(value: unknown, houseTokens: ReadonlySet<string>): CoinView {
   const c = asRecord(value, 'coin')
   const token = text(c, 'token', 'coin')
+  const creator = text(c, 'creator', 'coin')
   return {
     roundId: count(c, 'roundId', 'coin'),
     coinId: count(c, 'coinId', 'coin'),
     token,
-    creator: text(c, 'creator', 'coin'),
+    creator,
     name: text(c, 'name', 'coin'),
     ticker: text(c, 'ticker', 'coin'),
     monsterType: count(c, 'monsterType', 'coin'),
@@ -111,7 +113,7 @@ function decodeCoin(value: unknown, houseTokens: ReadonlySet<string>): CoinView 
     consolationPool: amount(c, 'consolationPool', 'coin'),
     consolationSupply: amount(c, 'consolationSupply', 'coin'),
     supply: amount(c, 'supply', 'coin'),
-    isHouse: flag(c, 'isHouse', 'coin') || houseTokens.has(token.toLowerCase())
+    isHouse: flag(c, 'isHouse', 'coin') || houseTokens.has(token.toLowerCase()) || isHouseCreator(creator)
   }
 }
 

@@ -12,7 +12,7 @@ import {
   skinByKey,
   skinById
 } from '../src/catalog'
-import { houseCoins, houseTokenSet, parseHouseCoins } from '../src/houseCoins'
+import { HOUSE_CREATOR_SUFFIX, houseCoins, houseTokenSet, isHouseCreator, parseHouseCoins } from '../src/houseCoins'
 
 describe('catalog', () => {
   it('matches the contracts.md mapping table', () => {
@@ -66,15 +66,25 @@ describe('catalog', () => {
 })
 
 describe('house coins', () => {
-  it('starts as an empty list of public addresses', () => {
+  it('keeps an empty static roster because NEAR house coins are recognised by their creator', () => {
     expect(houseCoins).toEqual([])
     expect(houseTokenSet().size).toBe(0)
   })
 
+  it('recognises house creators by the seeder suffix only', () => {
+    expect(HOUSE_CREATOR_SUFFIX).toBe('.fera-seeder.testnet')
+    expect(isHouseCreator('h0.fera-seeder.testnet')).toBe(true)
+    expect(isHouseCreator('deadbeef.fera-seeder.testnet')).toBe(true)
+    expect(isHouseCreator('.fera-seeder.testnet')).toBe(false)
+    expect(isHouseCreator('fera-seeder.testnet')).toBe(false)
+    expect(isHouseCreator('alice.testnet')).toBe(false)
+    expect(isHouseCreator('x.fera-seeder.testnet.evil.near')).toBe(false)
+  })
+
   it('parses entries and rejects bad ones', () => {
-    const entries = parseHouseCoins([{ roundId: 1, coinId: 0, ticker: 'MOOND', token: '0xAbC0000000000000000000000000000000000001' }])
-    expect(houseTokenSet(entries).has('0xabc0000000000000000000000000000000000001')).toBe(true)
+    const entries = parseHouseCoins([{ roundId: 1, coinId: 0, ticker: 'MOOND', token: '1:0' }])
+    expect(houseTokenSet(entries).has('1:0')).toBe(true)
     expect(() => parseHouseCoins({})).toThrow(TypeError)
-    expect(() => parseHouseCoins([{ roundId: 1, coinId: 0, ticker: 'X', token: 'nope' }])).toThrow(TypeError)
+    expect(() => parseHouseCoins([{ roundId: 1, coinId: 0, ticker: 'X', token: '' }])).toThrow(TypeError)
   })
 })

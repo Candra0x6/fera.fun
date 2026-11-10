@@ -1,4 +1,5 @@
 import { argBigInt, argBoolean, argNumber, argString, MalformedEventError } from './args'
+import { isHouseCreator } from './houseCoins'
 import type { ArenaEventEnvelope, ArenaSnapshot, CoinView, RoundView } from './types'
 
 export interface Draft {
@@ -113,11 +114,12 @@ export function reduceEvent(draft: Draft, e: ArenaEventEnvelope, houseTokens: Re
       const vMon = argBigInt(e, 'vMon')
       const vMon0 = configBigInt(draft.config, 'vMon0')
       const token = argString(e, 'token')
+      const creator = argString(e, 'creator')
       draft.coins.set(coinId, {
         roundId,
         coinId,
         token,
-        creator: argString(e, 'creator'),
+        creator,
         name: argString(e, 'name'),
         ticker: argString(e, 'ticker'),
         monsterType: argNumber(e, 'monsterType'),
@@ -134,7 +136,7 @@ export function reduceEvent(draft: Draft, e: ArenaEventEnvelope, houseTokens: Re
         consolationPool: '0',
         consolationSupply: '0',
         supply: argBigInt(e, 'supply').toString(),
-        isHouse: houseTokens.has(token.toLowerCase())
+        isHouse: houseTokens.has(token.toLowerCase()) || isHouseCreator(creator)
       })
       const pendingImage = draft.pendingImages.get(coinId)
       if (pendingImage !== undefined) {

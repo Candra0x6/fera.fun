@@ -5,5 +5,5 @@
     "noEmit": true
   },
   "include": ["src", "test", "vitest.config.ts", "catalog.json", "house-coins.json", "fixtures"],
-  "exclude": ["test/chainFeed.test.ts", "test/decode.test.ts", "test/chainHelpers.ts"]
+  "exclude": ["src/chainFeed.ts", "src/decode.ts", "src/chain.ts", "src/abi", "test/chainFeed.test.ts", "test/decode.test.ts", "test/chainHelpers.ts"]
 }

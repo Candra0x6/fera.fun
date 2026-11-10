@@ -8,5 +8,6 @@
     "removeComments": true,
     "sourceMap": false
   },
-  "include": ["src", "catalog.json", "house-coins.json"]
+  "include": ["src", "catalog.json", "house-coins.json"],
+  "exclude": ["src/chainFeed.ts", "src/decode.ts", "src/chain.ts", "src/abi", "src/fixtureBuilder.ts"]
 }

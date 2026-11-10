@@ -132,7 +132,7 @@ function parseRound(value: unknown, path: string): RoundView {
   }
 }
 
-function parseSnapshot(value: unknown, path: string): ArenaSnapshot {
+export function parseSnapshot(value: unknown, path: string): ArenaSnapshot {
   const s = record(value, path)
   const rawConfig = record(s['config'], `${path}.config`)
   const config: ArenaSnapshot['config'] = {}

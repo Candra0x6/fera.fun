@@ -10,7 +10,7 @@ function launchArgs(coinId: number): Record<string, unknown> {
   return {
     coinId,
     token: `1:${coinId}`,
-    creator: `player${coinId}.testnet`,
+    creator: coinId === 1 ? 'h1.fera-seeder.testnet' : `player${coinId}.testnet`,
     name: `Coin ${coinId}`,
     ticker: `C${coinId}`,
     monsterType: 0,
@@ -224,6 +224,7 @@ describe('createNearFeed', () => {
     let state = store.getState()
     expect(state.optimistic.coins.map((c) => c.token)).toEqual(['1:0', '1:1'])
     expect(state.optimistic.coins[0]?.creator).toBe('player0.testnet')
+    expect(state.optimistic.coins.map((c) => c.isHouse)).toEqual([false, true])
     expect(state.optimistic.round?.locked).toBe(true)
     expect(state.optimistic.round?.lockHeight).toBe(110)
     expect(state.persisted.coins).toHaveLength(0)
