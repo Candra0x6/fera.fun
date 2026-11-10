@@ -56,8 +56,10 @@ Prerequisites: Node 24 or newer, pnpm 11.4.0 (see `packageManager` in `package.j
 pnpm install --frozen-lockfile
 pnpm --filter web dev          # http://127.0.0.1:5173, defaults to fera-arena.testnet on the public testnet RPC list
 pnpm typecheck && pnpm test    # shared, keeper and web
-cargo test --manifest-path contracts-near/Cargo.toml   # contract, vectors, scenario replay, 1000 random scripts
+cargo test --manifest-path contracts-near/Cargo.toml   # contract, vectors, scenario replay, 1000 random scripts (the random scripts take about 5 minutes in a debug build)
 ```
+
+Last full run of these commands (2026-11-10, branch `near`): `pnpm typecheck` clean; `pnpm test` passes 91 tests in `shared`, 137 in `keeper` and 141 in `web`; `cargo test` passes all 14 contract tests (vectors, 258-step scenario replay, 10 scenario tests, the 1,000 random scripts).
 
 Web modes (query string): no parameter follows the live chain; `?demo` adds the demo controls; `?replay=fixture&speed=4` replays `shared/fixtures/arena-near-replay.json` with no chain; `?sim=1` is the original prototype simulation; `&debug=1` shows the FPS cell.
 
