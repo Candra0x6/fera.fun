@@ -1,10 +1,10 @@
 {
   "network": "testnet",
   "arena": "fera-arena.testnet",
-  "wasmSha256": "ddb17c3c8af5e1b2c1dfbbb08da71476caa6d64116f0eeeb16f4930be13be5fe",
+  "wasmSha256": "cfd64765850191633d569d7332f77e56203e11f22f116ba3673eae7e82762d11",
   "codeSizeBytes": 264278,
-  "deployedAt": "2026-11-10T08:25:37Z",
-  "deployHeight": 277042608,
+  "deployedAt": "2026-11-10T08:47:09Z",
+  "deployHeight": 277044834,
   "initTx": "Dx3mGS9zyhZacu9buGxCVtZFkPBejCtRmpmRbD7XYEuC",
   "config": {
     "minCoins": 6,
@@ -67,6 +67,9 @@
   "meta": {
     "gas": "values are Tgas (1 Tgas = 1e12 gas) of prepaid gas to attach, per method; gasBurntTgas are measured burnt totals including all receipts on testnet (resolve_epoch 6.88 is the worst epoch of a 6 coin round: 6 alive coins, 2 clashes, 4 hunts)",
     "amounts": "yoctoNEAR decimal strings",
-    "ledger": "coins are ledger assets inside the arena, not NEP-141 tokens"
-  }
+    "ledger": "coins are ledger assets inside the arena, not NEP-141 tokens",
+    "redeploy": "code redeployed once without init so that the deployed wasm equals the build of the committed source; state kept; same ABI"
+  },
+  "codeHash": "cfd64765850191633d569d7332f77e56203e11f22f116ba3673eae7e82762d11",
+  "deployTx": "Bgcuchf1hZX9mn9md8mWKpDSQtQF61fL8Dwy9fiLQ63V"
 }
