@@ -198,6 +198,8 @@ describe('createNearHouseChain', () => {
       },
       seederAccounts: ledgerState.accounts,
       houseSeed: 'house-seed-long',
+      retryDelayMs: 0,
+      sleep: () => Promise.resolve(),
       transportFor: (wallet): NearTransport => ({
         accountId: houseAccountId(wallet, 'fera-seeder.testnet'),
         view: () => Promise.reject(new Error('not used')),
@@ -258,5 +260,55 @@ describe('createNearHouseChain', () => {
     const chain = build(ledger(), [], failure)
     const item: LaunchPlanItem = { ticker: 'AQUA', name: 'Aqua Frost Wolf', monsterType: 1, skinId: 2, seed: TENTH, walletIndex: 2 }
     await expect(chain.launch(item, TENTH)).rejects.toThrow('ArenaError:BadSeed')
+  })
+
+  it('retries a launch that failed on the network and stops once the coin shows up in the lobby', async () => {
+    let tries = 0
+    const l = ledger()
+    const chain = createNearHouseChain({
+      roundId: 4,
+      arenaView: () => Promise.resolve(snapshot),
+      seederAccounts: l.accounts,
+      houseSeed: 'house-seed-long',
+      retryDelayMs: 0,
+      sleep: () => Promise.resolve(),
+      transportFor: (wallet): NearTransport => ({
+        accountId: houseAccountId(wallet, 'fera-seeder.testnet'),
+        view: () => Promise.reject(new Error('not used')),
+        head: () => Promise.reject(new Error('not used')),
+        call() {
+          tries += 1
+          if (tries < 3) return Promise.reject(new Error('Exceeded 4 providers to execute request'))
+          return Promise.resolve({ kind: 'success', hash: 'RETRIED', gasBurnt: 1n, blockTimestampSec: 1 })
+        }
+      })
+    })
+    const item: LaunchPlanItem = { ticker: 'AQUA', name: 'Aqua Frost Wolf', monsterType: 1, skinId: 2, seed: TENTH, walletIndex: 2 }
+    expect(await chain.launch(item, TENTH)).toBe('RETRIED')
+    expect(tries).toBe(3)
+    const landed: LaunchPlanItem = { ...item, ticker: 'MOOND', walletIndex: 0 }
+    tries = 0
+    expect(await chain.launch(landed, TENTH)).toBe('')
+    expect(tries).toBe(1)
+  })
+
+  it('gives up after the configured attempts with the last network error', async () => {
+    const chain = createNearHouseChain({
+      roundId: 4,
+      arenaView: () => Promise.resolve(snapshot),
+      seederAccounts: ledger().accounts,
+      houseSeed: 'house-seed-long',
+      attempts: 2,
+      retryDelayMs: 0,
+      sleep: () => Promise.resolve(),
+      transportFor: (wallet): NearTransport => ({
+        accountId: houseAccountId(wallet, 'fera-seeder.testnet'),
+        view: () => Promise.reject(new Error('not used')),
+        head: () => Promise.reject(new Error('not used')),
+        call: () => Promise.reject(new Error('rpc down'))
+      })
+    })
+    const item: LaunchPlanItem = { ticker: 'AQUA', name: 'Aqua Frost Wolf', monsterType: 1, skinId: 2, seed: TENTH, walletIndex: 2 }
+    await expect(chain.launch(item, TENTH)).rejects.toThrow('rpc down')
   })
 })

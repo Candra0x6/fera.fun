@@ -48,7 +48,7 @@ async function main(): Promise<void> {
       rpcUrls: config.rpcUrls,
       arena: config.arena,
       roundId,
-      pollMs: config.demoFast ? 500 : 1000
+      pollMs: config.demoFast ? 500 : 1500
     })
     next.onSnapshot((snapshot) => target.hydrate(snapshot))
     next.onEnvelope((envelope) => target.apply(envelope))

@@ -13,9 +13,9 @@ describe('loadConfig', () => {
     expect(config.dripAmount).toBe(2n * 10n ** 24n)
     expect(config.demoFast).toBe(false)
     expect(config.rpcUrls).toEqual([
+      'https://near-testnet.drpc.org',
       'https://test.rpc.fastnear.com',
       'https://rpc.testnet.fastnear.com',
-      'https://near-testnet.drpc.org',
       'https://rpc.testnet.near.org'
     ])
     expect(config.arena).toBe('fera-arena.testnet')

@@ -11,7 +11,7 @@ Names only, in the repo root `.env.example`. Keys are supplied as environment va
 | Name | Needed by | Notes |
 |---|---|---|
 | `NEAR_NETWORK` | all | `testnet` only |
-| `NEAR_RPC_URLS` | all | comma list, default `https://test.rpc.fastnear.com,https://rpc.testnet.fastnear.com,https://near-testnet.drpc.org,https://rpc.testnet.near.org` (reads skip an endpoint for 20 s after it answers 429) |
+| `NEAR_RPC_URLS` | all | comma list, default `https://near-testnet.drpc.org,https://test.rpc.fastnear.com,https://rpc.testnet.fastnear.com,https://rpc.testnet.near.org` (reads skip an endpoint for 20 s after it answers 429) |
 | `ARENA_ACCOUNT_ID` | all | falls back to `arena` in `deployments/near-testnet.json`, then `fera-arena.testnet` |
 | `KEEPER_ACCOUNT_ID`, `KEEPER_PRIVATE_KEY` | `start` | default account `fera-keeper.testnet`; key is `ed25519:...` |
 | `DRIP_ACCOUNT_ID`, `DRIP_PRIVATE_KEY` | drip | default `fera-drip.testnet` |
