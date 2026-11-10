@@ -130,6 +130,28 @@ describe('epoch lifecycle', () => {
   })
 })
 
+describe('wait hints', () => {
+  it('sleeps until the next lock instead of polling every second', async () => {
+    const arena = new FakeArena(leveling({ lastEpochResolvedAt: 1000 }))
+    arena.now = 1004
+    const { loop } = setup(arena)
+    expect((await loop.tick()).waitMs).toBe(5000)
+    arena.now = 1012
+    expect((await loop.tick()).waitMs).toBe(2000)
+    arena.now = 1013
+    expect((await loop.tick()).waitMs).toBe(1000)
+  })
+
+  it('sleeps roughly one second per missing seed block and polls the lobby every two seconds', async () => {
+    const arena = new FakeArena(leveling({ locked: true, epoch: 1, lockedAt: 1000, lockHeight: 5000 }))
+    arena.height = 5001
+    const { loop } = setup(arena)
+    expect((await loop.tick()).waitMs).toBe(2000)
+    const lobby = new FakeArena(baseRound({ createdAt: 1000, coinCount: 3 }))
+    expect((await setup(lobby).loop.tick()).waitMs).toBe(2000)
+  })
+})
+
 describe('abort', () => {
   it('aborts a round that outlives maxRoundSeconds', async () => {
     const arena = new FakeArena(leveling({ lastEpochResolvedAt: 1000 }), {

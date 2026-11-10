@@ -149,3 +149,25 @@ describe('createNearTransport against a fake JSON-RPC', () => {
     expect(await port.send({ fn: 'lockEpoch', roundId: 1 })).toEqual({ kind: 'skipped', reason: 'EpochTooEarly' })
   })
 })
+
+describe('rate limited endpoints', () => {
+  it('skips an endpoint that answered 429 and keeps using the healthy one', async () => {
+    const limited = createServer((req, res) => {
+      req.resume()
+      res.statusCode = 429
+      res.end('{"jsonrpc":"2.0","error":{"code":-429,"message":"Rate limits exceeded"},"id":"1"}')
+    })
+    await new Promise<void>((resolve) => void limited.listen(0, '127.0.0.1', resolve))
+    const limitedUrl = `http://127.0.0.1:${(limited.address() as AddressInfo).port}`
+    const good = await fakeRpc({ height: () => 777 })
+    open.push(good)
+    try {
+      const transport = createNearTransport({ rpcUrls: [limitedUrl, good.url], arena: ARENA, accountId: 'fera-keeper.testnet', privateKey: keyOf() })
+      expect((await transport.head()).height).toBe(777)
+      expect((await transport.head()).height).toBe(777)
+      expect(good.requests.filter((name) => name === 'block')).toHaveLength(2)
+    } finally {
+      await new Promise<void>((resolve) => void limited.close(() => resolve()))
+    }
+  })
+})

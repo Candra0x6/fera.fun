@@ -21,6 +21,7 @@ export interface DripOptions {
   helperWaitMs?: number
   now?: () => number
   sleep?: (ms: number) => Promise<void>
+  onError?: (stage: string, error: unknown) => void
 }
 
 export function derivedNames(publicKey: string, dripAccountId: string): { helperId: string; subId: string } {
@@ -107,7 +108,8 @@ export function createDripService(options: DripOptions): DripHandler {
       const txHash = await accounts.transfer(found.accountId, options.amount)
       lastTopUp.set(publicKey, at)
       return { ok: true, accountId: found.accountId, amount: options.amount.toString(), via: 'transfer', txHash }
-    } catch {
+    } catch (error) {
+      options.onError?.('top_up', error)
       undo()
       return { ok: false, error: 'send_failed' }
     }
@@ -137,7 +139,8 @@ export function createDripService(options: DripOptions): DripHandler {
       known.set(publicKey, { accountId: subId, via: 'transfer' })
       lastTopUp.set(publicKey, at)
       return { ok: true, accountId: subId, amount: options.amount.toString(), via: 'transfer', txHash }
-    } catch {
+    } catch (error) {
+      options.onError?.('create_account', error)
       undo()
       return { ok: false, error: 'send_failed' }
     }
@@ -147,7 +150,8 @@ export function createDripService(options: DripOptions): DripHandler {
     try {
       const found = await findExisting(publicKey)
       return found === null ? await newAccount(publicKey, ip) : await existingAccount(publicKey, ip, found)
-    } catch {
+    } catch (error) {
+      options.onError?.('lookup', error)
       return { ok: false, error: 'send_failed' }
     }
   }

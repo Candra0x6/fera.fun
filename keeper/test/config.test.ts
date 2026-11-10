@@ -15,6 +15,7 @@ describe('loadConfig', () => {
     expect(config.rpcUrls).toEqual([
       'https://test.rpc.fastnear.com',
       'https://rpc.testnet.fastnear.com',
+      'https://near-testnet.drpc.org',
       'https://rpc.testnet.near.org'
     ])
     expect(config.arena).toBe('fera-arena.testnet')

@@ -80,7 +80,8 @@ async function main(): Promise<void> {
     drip = createDripService({
       accounts: createNearAccounts({ rpcUrls: config.rpcUrls, accountId: config.dripAccountId, privateKey: config.dripKey }),
       helper: createHelperClient({ url: config.helperUrl }),
-      amount: config.dripAmount
+      amount: config.dripAmount,
+      onError: (stage, error) => log.warn({ stage, error: error instanceof Error ? error.message.slice(0, 200) : 'unknown' }, 'drip failed')
     })
     log.info({ dripAccount: config.dripAccountId, amountYocto: config.dripAmount.toString() }, 'drip enabled')
   }

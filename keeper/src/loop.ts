@@ -31,9 +31,15 @@ export interface TickOutcome {
   phase: RoundState['phase']
   sent: SendResult | null
   detail?: string
+  waitMs?: number
 }
 
 export type LoopResult = 'settled' | 'aborted' | 'stopped'
+
+const LOBBY_POLL_MS = 2000
+const MIN_WAIT_MS = 400
+const MAX_WAIT_MS = 5000
+const BLOCK_MS = 1000
 
 const UNEXPECTED_SKIPS: ReadonlySet<string> = new Set(['Insolvent', 'Overflow', 'InsufficientBalance', 'PayFailed', 'BadConfig'])
 
@@ -87,8 +93,11 @@ export function createKeeperLoop(options: LoopOptions) {
     return result
   }
 
-  function outcome(action: TickAction, round: RoundState, sent: SendResult | null, detail?: string): TickOutcome {
-    return detail === undefined ? { action, phase: round.phase, sent } : { action, phase: round.phase, sent, detail }
+  function outcome(action: TickAction, round: RoundState, sent: SendResult | null, detail?: string, waitMs?: number): TickOutcome {
+    const base: TickOutcome = { action, phase: round.phase, sent }
+    if (detail !== undefined) base.detail = detail
+    if (waitMs !== undefined) base.waitMs = Math.round(waitMs)
+    return base
   }
 
   async function reportResolved(round: RoundState, sent: SendResult): Promise<void> {
@@ -126,7 +135,7 @@ export function createKeeperLoop(options: LoopOptions) {
         }
         return outcome('abortRound', round, await submit({ fn: 'abortRound', roundId }, round))
       }
-      return outcome('wait', round, null, 'lobby open')
+      return outcome('wait', round, null, 'lobby open', Math.max(options.pollMs, LOBBY_POLL_MS))
     }
 
     if (!round.locked) {
@@ -137,7 +146,8 @@ export function createKeeperLoop(options: LoopOptions) {
       if (now >= base + p.epochSeconds) {
         return outcome('lockEpoch', round, await submit({ fn: 'lockEpoch', roundId }, round))
       }
-      return outcome('wait', round, null, `next lock in ${base + p.epochSeconds - now}s`)
+      const remaining = base + p.epochSeconds - now
+      return outcome('wait', round, null, `next lock in ${remaining}s`, Math.min(Math.max(remaining * 1000, MIN_WAIT_MS), MAX_WAIT_MS))
     }
 
     if (lockSeen === null || lockSeen.lockedAt !== round.lockedAt) {
@@ -149,7 +159,8 @@ export function createKeeperLoop(options: LoopOptions) {
       if (sent.kind === 'mined' && sent.status === 'success') await reportResolved(round, sent)
       return outcome('resolveEpoch', round, sent)
     }
-    return outcome('wait', round, null, `waiting for block ${round.lockHeight + p.minSeedBlocks}, head ${height}`)
+    const blocksLeft = round.lockHeight + p.minSeedBlocks - height
+    return outcome('wait', round, null, `waiting for block ${round.lockHeight + p.minSeedBlocks}, head ${height}`, Math.max(blocksLeft * BLOCK_MS, MIN_WAIT_MS))
   }
 
   async function run(shouldStop: () => boolean): Promise<LoopResult> {
@@ -160,7 +171,7 @@ export function createKeeperLoop(options: LoopOptions) {
         failures = 0
         if (step.action === 'finished') return step.phase === 'Settled' ? 'settled' : 'aborted'
         const acted = step.sent !== null && step.sent.kind === 'mined'
-        await options.sleep(acted ? Math.min(100, options.pollMs) : step.sent !== null ? retryMs : options.pollMs)
+        await options.sleep(acted ? Math.min(100, options.pollMs) : step.sent !== null ? retryMs : (step.waitMs ?? options.pollMs))
       } catch (error) {
         failures += 1
         const delay = Math.min(10_000, retryMs * 2 ** Math.min(failures, 4))

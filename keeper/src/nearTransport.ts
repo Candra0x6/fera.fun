@@ -7,6 +7,7 @@ import type { NearCallResult, NearHead, NearTransport } from './nearPort'
 export const DEFAULT_TESTNET_RPC_URLS: readonly string[] = [
   'https://test.rpc.fastnear.com',
   'https://rpc.testnet.fastnear.com',
+  'https://near-testnet.drpc.org',
   'https://rpc.testnet.near.org'
 ]
 

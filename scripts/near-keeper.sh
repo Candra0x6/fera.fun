@@ -20,5 +20,5 @@ if [ ! -f "$dir/demo-admin-token" ]; then
 fi
 chmod 600 "$dir/demo-admin-token"
 export DEMO_ADMIN_TOKEN="$(cat "$dir/demo-admin-token")"
-cd "$root"
-exec pnpm --filter keeper start
+cd "$root/keeper"
+exec ./node_modules/.bin/tsx src/main.ts
