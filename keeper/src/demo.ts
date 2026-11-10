@@ -1,6 +1,6 @@
 import type { RoundPhase } from './port'
 import type { ArenaPort } from './port'
-import { HOUSE_ROSTER, MAX_SEED_COUNT, fundingByWallet, planLaunches, runSeedHouse } from './house'
+import { HOUSE_ROSTER, MAX_SEED_COUNT, fundingByWallet, planLaunches, runSeedHouse, topUpTarget } from './house'
 import type { HouseChain } from './house'
 
 const ENDED: readonly RoundPhase[] = ['None', 'Settled', 'Aborted']
@@ -136,9 +136,9 @@ export function createDemoAdmin(deps: DemoDeps): DemoAdmin {
       })
       if (plan.length === 0) return { ok: true, value: { ok: true, launched: [], txHash: '' } }
       let needed = 0n
-      for (const [walletIndex, target] of fundingByWallet(plan, state.launchFee, deps.houseGasBuffer)) {
+      for (const [walletIndex, minimum] of fundingByWallet(plan, state.launchFee, deps.houseGasBuffer)) {
         const held = await chain.houseBalance(walletIndex)
-        if (target > held) needed += target - held
+        if (held < minimum) needed += topUpTarget(minimum) - held
       }
       const balance = await deps.chain.balance(deps.seederAccountId)
       if (balance < needed) {

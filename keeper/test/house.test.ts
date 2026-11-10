@@ -74,6 +74,62 @@ function fakeChain(existing: string[] = []): { chain: HouseChain; funded: Array<
   }
 }
 
+describe('runSeedHouse concurrency', () => {
+  function timed(options: { failTicker?: string } = {}) {
+    const events: string[] = []
+    let running = 0
+    let peak = 0
+    const perWallet = new Map<number, number>()
+    let walletPeak = 0
+    const chain: HouseChain = {
+      readState: () => Promise.resolve({ coins: [], minSeed: TENTH, maxSeed: TENTH, launchFee: TENTH, maxCoins: 6 }),
+      houseBalance: () => Promise.resolve(0n),
+      async fund(walletIndex) {
+        events.push(`fund${walletIndex}`)
+        await new Promise<void>((resolve) => void setTimeout(resolve, 5))
+      },
+      async launch(item) {
+        running += 1
+        peak = Math.max(peak, running)
+        perWallet.set(item.walletIndex, (perWallet.get(item.walletIndex) ?? 0) + 1)
+        walletPeak = Math.max(walletPeak, perWallet.get(item.walletIndex) ?? 0)
+        await new Promise<void>((resolve) => void setTimeout(resolve, 20))
+        running -= 1
+        perWallet.set(item.walletIndex, (perWallet.get(item.walletIndex) ?? 1) - 1)
+        if (item.ticker === options.failTicker) throw new Error('launch refused')
+        events.push(`launch${item.ticker}`)
+        return `TX-${item.ticker}`
+      }
+    }
+    return { chain, events, peak: () => peak, walletPeak: () => walletPeak }
+  }
+
+  it('launches the five coins in parallel and returns them in roster order', async () => {
+    const t = timed()
+    const started = Date.now()
+    const result = await runSeedHouse({ chain: t.chain, gasBuffer: TENTH, limit: 5, log: () => undefined })
+    expect(Date.now() - started).toBeLessThan(80)
+    expect(t.peak()).toBe(5)
+    expect(result.launched).toEqual(['MOOND', 'FIRECAT', 'AQUA', 'TITAN', 'VOLT'])
+    expect(result.txHashes).toEqual(['TX-MOOND', 'TX-FIRECAT', 'TX-AQUA', 'TX-TITAN', 'TX-VOLT'])
+  })
+
+  it('keeps one launch in flight per wallet when a wallet holds two coins', async () => {
+    const t = timed()
+    const result = await runSeedHouse({ chain: t.chain, gasBuffer: TENTH, limit: 6, log: () => undefined })
+    expect(result.launched).toHaveLength(6)
+    expect(t.walletPeak()).toBe(1)
+  })
+
+  it('lets the other launches finish and then rethrows when one fails', async () => {
+    const t = timed({ failTicker: 'AQUA' })
+    const logs: string[] = []
+    await expect(runSeedHouse({ chain: t.chain, gasBuffer: TENTH, limit: 5, log: (message) => logs.push(message) })).rejects.toThrow('launch refused')
+    expect(t.events.filter((event) => event.startsWith('launch'))).toHaveLength(4)
+    expect(logs).toContain('house launch partly failed')
+  })
+})
+
 describe('runSeedHouse', () => {
   it('funds each wallet, launches in order and returns the hashes', async () => {
     const { chain, funded, launched } = fakeChain()
@@ -168,17 +224,17 @@ describe('createNearHouseChain', () => {
   it('creates a missing house sub-account with its derived key and the target balance', async () => {
     const l = ledger()
     await build(l, []).fund(2, 3n * TENTH)
-    expect(l.created).toEqual([{ id: 'h3.fera-seeder.testnet', publicKey: housePublicKey('house-seed-long', 2), amount: 3n * TENTH }])
+    expect(l.created).toEqual([{ id: 'h3.fera-seeder.testnet', publicKey: housePublicKey('house-seed-long', 2), amount: 9n * TENTH }])
   })
 
-  it('tops an existing account up to the target and leaves a funded one alone', async () => {
+  it('tops an existing account up to three rounds of funding and leaves a funded one alone', async () => {
     const l = ledger()
     l.balances.set('h1.fera-seeder.testnet', TENTH)
     l.balances.set('h2.fera-seeder.testnet', 5n * TENTH)
     const chain = build(l, [])
     await chain.fund(0, 3n * TENTH)
     await chain.fund(1, 3n * TENTH)
-    expect(l.transfers).toEqual([{ to: 'h1.fera-seeder.testnet', amount: 2n * TENTH }])
+    expect(l.transfers).toEqual([{ to: 'h1.fera-seeder.testnet', amount: 8n * TENTH }])
   })
 
   it('launches from the house account with launchFee plus seed attached', async () => {

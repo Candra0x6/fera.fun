@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server'
-import { createArenaStore } from '@animal/shared'
+import { createArenaStore, createNearFeed } from '@animal/shared'
 import type { ChainFeed, FeedStatus } from '@animal/shared'
 import { createApi } from './api'
 import type { DripHandler } from './api'
@@ -7,7 +7,6 @@ import type { HealthBody } from './api'
 import { createDemoAdmin } from './demo'
 import { createNearDemoChain } from './demoChain'
 import { createDripService } from './drip'
-import { resolveNearFeedFactory } from './feed'
 import { followRounds, createSwitchableRelay } from './follow'
 import { createHelperClient } from './helper'
 import { createNearHouseChain } from './houseChain'
@@ -22,7 +21,6 @@ const STALE_AFTER_SECONDS = 5
 
 async function main(): Promise<void> {
   const { config, log, keeperTransport, port } = bootRuntime(process.env, ['keeperKey'])
-  const createFeed = resolveNearFeedFactory()
   log.info(
     {
       keeperAccount: config.keeperAccountId,
@@ -44,7 +42,7 @@ async function main(): Promise<void> {
     store = createArenaStore()
     status = { upstream: 'reconnecting', headBlock: 0, lagSeconds: 0 }
     const target = store
-    const next = createFeed({
+    const next = createNearFeed({
       rpcUrls: config.rpcUrls,
       arena: config.arena,
       roundId,

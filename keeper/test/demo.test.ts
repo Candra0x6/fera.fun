@@ -159,7 +159,7 @@ describe('demo admin', () => {
     const w = world(baseRound({ phase: 'Lobby', coinCount: 0 }))
     w.balances.set('fera-seeder.testnet', NEAR)
     const result = await createDemoAdmin(w.deps).seedHouse(5)
-    expect(result).toMatchObject({ ok: false, status: 402, body: { error: 'insufficient funds', shortfall: '0.5', account: 'fera-seeder.testnet' } })
+    expect(result).toMatchObject({ ok: false, status: 402, body: { error: 'insufficient funds', shortfall: '3.5', account: 'fera-seeder.testnet' } })
     expect(w.launches).toHaveLength(0)
   })
 

@@ -24,6 +24,11 @@ const RAW_ROSTER: ReadonlyArray<readonly [string, string, string, string]> = [
 
 export const HOUSE_WALLETS = 5
 export const MAX_SEED_COUNT = 5
+export const HOUSE_RESERVE_ROUNDS = 3n
+
+export function topUpTarget(minimum: bigint): bigint {
+  return minimum * HOUSE_RESERVE_ROUNDS
+}
 
 export const HOUSE_ROSTER: readonly RosterEntry[] = RAW_ROSTER.map(([ticker, name, monster, skin]) => {
   const monsterType = monsterByKey(monster)?.monsterType
@@ -88,7 +93,7 @@ export interface HouseState {
 export interface HouseChain {
   readState(): Promise<HouseState>
   houseBalance(walletIndex: number): Promise<bigint>
-  fund(walletIndex: number, target: bigint): Promise<void>
+  fund(walletIndex: number, minimum: bigint): Promise<void>
   launch(item: LaunchPlanItem, launchFee: bigint): Promise<string>
 }
 
@@ -115,17 +120,28 @@ export async function runSeedHouse(options: SeedHouseOptions): Promise<SeedHouse
     freeSlots: Math.max(0, before.maxCoins - before.coins.length),
     ...(options.limit === undefined ? {} : { limit: options.limit })
   })
-  for (const [walletIndex, target] of fundingByWallet(plan, before.launchFee, options.gasBuffer)) {
-    await options.chain.fund(walletIndex, target)
-    options.log('house wallet ready', { walletIndex, target: target.toString() })
-  }
-  const launched: string[] = []
-  const txHashes: string[] = []
-  for (const item of plan) {
-    const txHash = await options.chain.launch(item, before.launchFee)
-    launched.push(item.ticker)
-    txHashes.push(txHash)
-    options.log('launched house coin', { ticker: item.ticker, walletIndex: item.walletIndex, seed: item.seed.toString(), txHash })
+  const minimums = fundingByWallet(plan, before.launchFee, options.gasBuffer)
+  const byWallet = new Map<number, LaunchPlanItem[]>()
+  for (const item of plan) byWallet.set(item.walletIndex, [...(byWallet.get(item.walletIndex) ?? []), item])
+  const done = new Map<string, string>()
+  const settled = await Promise.allSettled(
+    [...byWallet.entries()].map(async ([walletIndex, items]) => {
+      const minimum = minimums.get(walletIndex) ?? 0n
+      await options.chain.fund(walletIndex, minimum)
+      options.log('house wallet ready', { walletIndex, minimum: minimum.toString() })
+      for (const item of items) {
+        const txHash = await options.chain.launch(item, before.launchFee)
+        done.set(item.ticker, txHash)
+        options.log('launched house coin', { ticker: item.ticker, walletIndex, seed: item.seed.toString(), txHash })
+      }
+    })
+  )
+  const launched = plan.filter((item) => done.has(item.ticker)).map((item) => item.ticker)
+  const txHashes = launched.map((ticker) => done.get(ticker) ?? '')
+  const failure = settled.find((entry): entry is PromiseRejectedResult => entry.status === 'rejected')
+  if (failure !== undefined) {
+    options.log('house launch partly failed', { launched })
+    throw failure.reason instanceof Error ? failure.reason : new Error('house launch failed')
   }
   return { launched, txHashes }
 }

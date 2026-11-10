@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { topUpTarget } from './house'
 import type { HouseChain, HouseState } from './house'
 import { houseAccountId, housePublicKey } from './houseKeys'
 import type { NearAccounts } from './nearAccounts'
@@ -43,15 +44,16 @@ export function createNearHouseChain(options: HouseChainOptions): HouseChain {
     houseBalance(walletIndex) {
       return seederAccounts.balance(idOf(walletIndex))
     },
-    async fund(walletIndex, target) {
+    async fund(walletIndex, minimum) {
       const id = idOf(walletIndex)
+      const target = topUpTarget(minimum)
       if (!(await seederAccounts.exists(id))) {
         await seederAccounts.createAccount(id, housePublicKey(options.houseSeed, walletIndex), target)
         await seederAccounts.waitFinal(id)
         return
       }
       const held = await seederAccounts.balance(id)
-      if (held < target) await seederAccounts.transfer(id, target - held)
+      if (held < minimum) await seederAccounts.transfer(id, target - held)
     },
     async launch(item, launchFee) {
       const result = await options.transportFor(item.walletIndex).call(
