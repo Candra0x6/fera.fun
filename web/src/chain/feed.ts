@@ -1,8 +1,9 @@
 import type { FeedRow } from './director'
-import { explorerTxUrl } from './explorer'
+import { explorerEventUrl } from './explorer'
 import { feedSegments } from './feedRow'
 import type { FeedSegment } from './feedRow'
 import { formatRelativeTime } from './format'
+import { config } from './session'
 import { monsterIcon, monsterIconImage } from './monsters'
 
 export interface FeedRenderer {
@@ -77,7 +78,7 @@ export function createFeedRenderer(host: HTMLElement, limit = 30): FeedRenderer 
 
     const foot = element('div', 'flex items-center justify-end')
     const link = element('a', 'text-[9px] font-bold text-[#0284c7] hover:underline select-text', 'View on explorer')
-    link.href = explorerTxUrl(row.txHash)
+    link.href = explorerEventUrl(row.txHash, config.arena)
     link.target = '_blank'
     link.rel = 'noopener noreferrer'
     foot.append(link)

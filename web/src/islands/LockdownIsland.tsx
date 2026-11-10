@@ -6,7 +6,7 @@ import { powerRating } from '../chain/power'
 import { useArenaState } from '../chain/session'
 import { formatClock, lockdownPhase, seedTimeoutSecondsLeft } from '../chain/timers'
 import { pushToast } from '../chain/toasts'
-import { weiToMon } from '../chain/format'
+import { yoctoToNear } from '../chain/format'
 import { cfgNumber } from './shared'
 
 export function LockdownIsland() {
@@ -30,7 +30,7 @@ export function LockdownIsland() {
   const info = useMemo(() => lockInfo(state.events), [state.events])
   const ratings = useMemo(() => {
     const alive = state.optimistic.coins.filter((coin) => coin.status === 'Alive')
-    const reserves = alive.map((coin) => weiToMon(coin.rMonAtLock))
+    const reserves = alive.map((coin) => yoctoToNear(coin.rMonAtLock))
     const mean = reserves.length === 0 ? 0 : reserves.reduce((sum, value) => sum + value, 0) / reserves.length
     return alive
       .map((coin) => ({
@@ -40,7 +40,7 @@ export function LockdownIsland() {
           baseStat: MONSTERS.find((monster) => monster.monsterType === coin.monsterType)?.baseStat ?? 10000,
           level: coin.level,
           levelBonusBps: cfgNumber(state, 'levelBonusBps', 400),
-          rMonAtLock: weiToMon(coin.rMonAtLock),
+          rMonAtLock: yoctoToNear(coin.rMonAtLock),
           meanRMonAlive: mean,
           gammaBps: cfgNumber(state, 'gammaBps', 8500),
           poolFactorMinBps: cfgNumber(state, 'poolFactorMinBps', 1000),

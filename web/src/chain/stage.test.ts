@@ -20,10 +20,9 @@ describe('lobby helpers', () => {
     expect(canStartLobby({ phase: 'Knockout' })).toBe(false)
   })
   it('explains why starting a lobby is disabled', () => {
-    expect(startLobbyBlocker({ connected: false, chainOk: false, pending: false })).toBe('Connect a wallet first')
-    expect(startLobbyBlocker({ connected: true, chainOk: false, pending: false })).toBe('Switch to Monad Testnet')
-    expect(startLobbyBlocker({ connected: true, chainOk: true, pending: true })).toBe('Waiting for confirmation')
-    expect(startLobbyBlocker({ connected: true, chainOk: true, pending: false })).toBeNull()
+    expect(startLobbyBlocker({ connected: false, pending: false })).toBe('Connect a wallet first')
+    expect(startLobbyBlocker({ connected: true, pending: true })).toBe('Waiting for confirmation')
+    expect(startLobbyBlocker({ connected: true, pending: false })).toBeNull()
   })
   it('explains why launching is disabled', () => {
     expect(launchDisabledReason(null)).toMatch(/No round/)

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { explorerAddressUrl } from '../chain/explorer'
-import { formatMonCompact, shortAddress } from '../chain/format'
+import { formatNearCompact, shortAddress, yoctoToNumber } from '../chain/format'
 import { useStore } from '../chain/store'
-import { connectBurner, connectInjected, disconnect, discoverWallets, isChainOk, requestDrip, switchNetwork, walletStore } from '../chain/wallet'
+import { connectBurner, disconnect, isConnected, requestDrip, walletStore } from '../chain/wallet'
 import { config, replayMode } from '../chain/session'
 import { BTN_GLASS } from './shared'
 
@@ -30,34 +30,24 @@ const MENU_ITEM =
 export function WalletIsland() {
   const wallet = useStore(walletStore)
   const [open, setOpen] = useState(false)
-  useEffect(() => discoverWallets(), [])
   useEffect(() => {
-    if (walletStore.get().status === 'disconnected' && wantsAutoBurner()) void connectBurner()
+    if (walletStore.get().status === 'idle' && wantsAutoBurner()) void connectBurner()
   }, [])
 
   if (wallet.status === 'connecting') {
     return (
       <button type="button" disabled className={`${BTN_GLASS} opacity-70 cursor-wait`}>
         <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping"></span>
-        Connecting...
+        Setting up burner...
       </button>
     )
   }
 
-  if (wallet.status === 'connected' && wallet.address !== null) {
-    const wrongNetwork = !isChainOk(wallet)
-    const balance = wallet.balance === null ? '...' : formatMonCompact(Number(wallet.balance / 10n ** 12n) / 1e6)
+  if (isConnected(wallet) && wallet.accountId !== null) {
+    const account = wallet.accountId
+    const balance = wallet.balance === null ? '...' : formatNearCompact(yoctoToNumber(wallet.balance))
     return (
       <div className="relative flex items-center gap-2">
-        {wrongNetwork ? (
-          <button
-            type="button"
-            onClick={() => void switchNetwork()}
-            className="bg-[#FDE2E0] text-[#9f1239] border-[3px] border-[#E95B55] shadow-[0_4px_0_#b94540] text-xs font-extrabold px-3.5 py-2.5 rounded-2xl"
-          >
-            Switch Network
-          </button>
-        ) : null}
         <button
           type="button"
           data-testid="wallet-connected"
@@ -66,21 +56,21 @@ export function WalletIsland() {
           className="cartoon-btn px-3.5 py-2 flex items-center gap-2 text-sm !rounded-2xl"
         >
           <span className="w-2.5 h-2.5 rounded-full bg-[#42e08a] animate-pulse"></span>
-          <span className="font-mono-num font-extrabold text-[#2a4a57]">{shortAddress(wallet.address)}</span>
+          <span className="font-mono-num font-extrabold text-[#2a4a57]">{shortAddress(account)}</span>
           <span className="font-mono-num text-[#1f7a46]">{balance}</span>
-          {wallet.kind === 'burner' ? <span className="text-[9px] uppercase text-[#b45309]">burner</span> : null}
+          <span className="text-[9px] uppercase text-[#b45309]">burner</span>
         </button>
         {open ? (
           <div className="cartoon-panel !rounded-2xl p-2 w-60 flex flex-col gap-1.5 absolute right-0 top-full mt-3 z-30">
-            <button type="button" className={MENU_ITEM} onClick={() => void navigator.clipboard.writeText(wallet.address ?? '')}>
-              Copy address
+            <button type="button" className={MENU_ITEM} onClick={() => void navigator.clipboard.writeText(account)}>
+              Copy account id
             </button>
-            <a className={MENU_ITEM} href={explorerAddressUrl(wallet.address)} target="_blank" rel="noopener noreferrer">
+            <a className={MENU_ITEM} href={explorerAddressUrl(account)} target="_blank" rel="noopener noreferrer">
               View on explorer
             </a>
             {config.keeperUrl !== null ? (
               <button type="button" className={MENU_ITEM} disabled={wallet.dripping} onClick={() => void requestDrip()}>
-                Get test MON
+                Get test NEAR
               </button>
             ) : null}
             <button
@@ -94,6 +84,7 @@ export function WalletIsland() {
             >
               Disconnect
             </button>
+            <div className="text-[10px] text-[#4d6670] px-1">The burner key lives in this browser. Testnet play-money only.</div>
           </div>
         ) : null}
       </div>
@@ -107,20 +98,6 @@ export function WalletIsland() {
       </button>
       {open ? (
         <div className="cartoon-panel !rounded-2xl p-2 w-60 flex flex-col gap-1.5 absolute right-0 top-full mt-3 z-30">
-          {wallet.providers.map((provider) => (
-            <button
-              key={provider.uuid}
-              type="button"
-              className={`${MENU_ITEM} flex items-center gap-2`}
-              onClick={() => {
-                setOpen(false)
-                void connectInjected(provider)
-              }}
-            >
-              <img src={provider.icon} alt="" className="w-4 h-4 rounded" />
-              {provider.name}
-            </button>
-          ))}
           <button
             type="button"
             data-testid="use-burner"
@@ -132,7 +109,7 @@ export function WalletIsland() {
           >
             Use burner (testnet only)
           </button>
-          <div className="text-[10px] text-[#4d6670] px-1">Testnet play-money. Do not deposit real funds.</div>
+          <div className="text-[10px] text-[#4d6670] px-1">The burner key lives in this browser. Testnet play-money only: do not deposit real funds.</div>
         </div>
       ) : null}
     </div>

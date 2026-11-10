@@ -1,6 +1,6 @@
 import type { ArenaBridge, ClashPlan, CoinSceneView } from '../arena/bridge'
 import { safeImageSrc } from './coinImage'
-import { weiToMon } from './format'
+import { yoctoToNear } from './format'
 import { isFinalClash } from './finalDuel'
 import { withTimeout } from './safety'
 
@@ -183,7 +183,7 @@ function boolArg(e: DirectorEnvelope, key: string): boolean {
 
 function monArg(e: DirectorEnvelope, key: string): number {
   const value = stringArg(e, key)
-  return /^\d+$/.test(value) ? weiToMon(value) : 0
+  return /^\d+$/.test(value) ? yoctoToNear(value) : 0
 }
 
 export function toSceneView(coin: DirectorCoin, rank: number): CoinSceneView {
@@ -193,7 +193,7 @@ export function toSceneView(coin: DirectorCoin, rank: number): CoinSceneView {
     name: coin.name,
     monsterType: coin.monsterType,
     skinId: coin.skinId,
-    rMon: weiToMon(coin.rMon),
+    rMon: yoctoToNear(coin.rMon),
     level: coin.level,
     xp: coin.xp,
     wins: coin.wins,

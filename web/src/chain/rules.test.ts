@@ -3,23 +3,22 @@ import { readConfig } from './config'
 import { launchBlocker, sanitizeTickerInput } from './launchRules'
 import type { LaunchInput } from './launchRules'
 import { powerRating } from './power'
-import { deadlineFrom, minOutWithSlippage, parseMonInput } from './slippage'
+import { deadlineMsFrom, minOutWithSlippage, parseNearInput, parseTokenInput } from './slippage'
 import { formatClock, lobbySecondsLeft, lockdownPhase, nextLockSecondsLeft, seedTimeoutSecondsLeft } from './timers'
 
 const base: LaunchInput = {
   name: 'Solar',
   ticker: 'SOLAR',
-  seedMon: '5',
-  minSeedMon: 2,
-  maxSeedMon: 50,
+  seedNear: '0.1',
+  minSeedNear: 0.1,
+  maxSeedNear: 0.5,
   phase: 'Lobby',
-  coinCount: 12,
-  maxCoins: 30,
+  coinCount: 3,
+  maxCoins: 6,
   launchedByMe: 0,
   connected: true,
-  chainOk: true,
-  balanceMon: 20,
-  launchFeeMon: 1
+  balanceNear: 2,
+  launchFeeNear: 0.1
 }
 
 describe('launchBlocker', () => {
@@ -29,15 +28,13 @@ describe('launchBlocker', () => {
   it('reports the first blocking reason', () => {
     expect(launchBlocker({ ...base, phase: 'Leveling' })).toBe('Lobby only')
     expect(launchBlocker({ ...base, connected: false })).toBe('Connect a wallet first')
-    expect(launchBlocker({ ...base, chainOk: false })).toBe('Switch to Monad Testnet')
-    expect(launchBlocker({ ...base, reserveFunded: false })).toBe('Reserve not funded yet')
-    expect(launchBlocker({ ...base, coinCount: 30 })).toBe('Arena full (30 / 30)')
-    expect(launchBlocker({ ...base, launchedByMe: 2 })).toBe('Limit of 2 coins per address')
+    expect(launchBlocker({ ...base, coinCount: 6 })).toBe('Arena full (6 / 6)')
+    expect(launchBlocker({ ...base, launchedByMe: 2 })).toBe('Limit of 2 coins per account')
     expect(launchBlocker({ ...base, name: '  ' })).toBe('Name must be 1 to 28 characters')
     expect(launchBlocker({ ...base, ticker: 'A' })).toBe('Ticker must be 2 to 7 letters or digits')
-    expect(launchBlocker({ ...base, seedMon: '1' })).toBe('Minimum seed is 2 MON')
-    expect(launchBlocker({ ...base, seedMon: '51' })).toBe('Maximum seed is 50 MON')
-    expect(launchBlocker({ ...base, balanceMon: 3 })).toBe('Balance too low')
+    expect(launchBlocker({ ...base, seedNear: '0.01' })).toBe('Minimum seed is 0.1 NEAR')
+    expect(launchBlocker({ ...base, seedNear: '0.6' })).toBe('Maximum seed is 0.5 NEAR')
+    expect(launchBlocker({ ...base, balanceNear: 0.15 })).toBe('Balance too low')
   })
   it('sanitises tickers', () => {
     expect(sanitizeTickerInput('so-lar_9!x')).toBe('SOLAR9X')
@@ -52,14 +49,19 @@ describe('slippage helpers', () => {
     expect(minOutWithSlippage(0n)).toBe(1n)
     expect(minOutWithSlippage(1n)).toBe(1n)
   })
-  it('sets the deadline 120 seconds ahead', () => {
-    expect(deadlineFrom(1000.9)).toBe(1120n)
+  it('sets the deadline 120 seconds ahead in milliseconds', () => {
+    expect(deadlineMsFrom(1_000_900.9)).toBe(1_120_900)
   })
-  it('parses MON input to wei', () => {
-    expect(parseMonInput('1.5')).toBe(1_500_000_000_000_000_000n)
-    expect(parseMonInput('0')).toBeNull()
-    expect(parseMonInput('abc')).toBeNull()
-    expect(parseMonInput('1.0000000000000000001')).toBeNull()
+  it('parses NEAR input to yocto', () => {
+    expect(parseNearInput('1.5')).toBe(1_500_000_000_000_000_000_000_000n)
+    expect(parseNearInput('0.1')).toBe(100_000_000_000_000_000_000_000n)
+    expect(parseNearInput('0')).toBeNull()
+    expect(parseNearInput('abc')).toBeNull()
+    expect(parseNearInput('1.0000000000000000000000001')).toBeNull()
+  })
+  it('parses token input with 18 decimals', () => {
+    expect(parseTokenInput('1.5')).toBe(1_500_000_000_000_000_000n)
+    expect(parseTokenInput('1.0000000000000000001')).toBeNull()
   })
 })
 
@@ -95,27 +97,28 @@ describe('powerRating', () => {
 })
 
 describe('readConfig', () => {
-  it('falls back to the public Monad testnet endpoints', () => {
+  it('falls back to the deployed testnet arena and the public fastnear endpoints', () => {
     const config = readConfig({})
-    expect(config.chainId).toBe(10143)
-    expect(config.arena).toBeNull()
+    expect(config.network).toBe('testnet')
+    expect(config.arena).toBe('fera-arena.testnet')
     expect(config.roundId).toBeNull()
-    expect(config.httpUrls.length).toBeGreaterThan(0)
+    expect(config.keeperUrl).toBeNull()
+    expect(config.rpcUrls).toEqual(['https://test.rpc.fastnear.com', 'https://rpc.testnet.fastnear.com'])
   })
   it('reads the VITE variables', () => {
     const config = readConfig({
-      VITE_CHAIN_ID: '31337',
-      VITE_RPC_HTTP_URL: 'http://127.0.0.1:8545',
-      VITE_RPC_WS_URL: 'ws://127.0.0.1:8545',
-      VITE_ARENA_ADDRESS: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+      VITE_NEAR_NETWORK: 'testnet',
+      VITE_ARENA_ACCOUNT: 'my-arena.testnet',
+      VITE_RPC_URLS: 'https://a.example, https://b.example',
       VITE_ROUND_ID: '2',
       VITE_KEEPER_URL: 'http://127.0.0.1:8787/'
     })
-    expect(config).toMatchObject({ chainId: 31337, roundId: 2, keeperUrl: 'http://127.0.0.1:8787' })
-    expect(config.httpUrls).toEqual(['http://127.0.0.1:8545'])
-    expect(config.arena).toBe('0x5FbDB2315678afecb367f032d93F642f64180aa3')
+    expect(config).toMatchObject({ arena: 'my-arena.testnet', roundId: 2, keeperUrl: 'http://127.0.0.1:8787' })
+    expect(config.rpcUrls).toEqual(['https://a.example', 'https://b.example'])
   })
-  it('ignores a malformed arena address', () => {
-    expect(readConfig({ VITE_ARENA_ADDRESS: 'nope' }).arena).toBeNull()
+  it('ignores a malformed arena account and unusable rpc urls', () => {
+    const config = readConfig({ VITE_ARENA_ACCOUNT: 'NOPE!', VITE_RPC_URLS: 'not-a-url' })
+    expect(config.arena).toBe('fera-arena.testnet')
+    expect(config.rpcUrls).toHaveLength(2)
   })
 })

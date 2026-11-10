@@ -1,5 +1,5 @@
 import type { FeedRow } from './director'
-import { formatMonPlain } from './format'
+import { formatNearPlain } from './format'
 
 export interface FeedSegment {
   key: 'boost' | 'consolation' | 'pot' | 'treasury'
@@ -19,7 +19,7 @@ export function feedSegments(row: FeedRow): FeedSegment[] {
   const total = parts.reduce((sum, part) => sum + part.amount, 0)
   return parts.map((part) => ({
     ...part,
-    amountText: formatMonPlain(part.amount),
+    amountText: formatNearPlain(part.amount),
     percent: total > 0 ? (part.amount / total) * 100 : 25
   }))
 }

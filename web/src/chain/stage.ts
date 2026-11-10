@@ -31,9 +31,8 @@ export function canStartLobby(round: { phase: string } | null): boolean {
   return round === null || round.phase === 'Settled' || round.phase === 'Aborted'
 }
 
-export function startLobbyBlocker(input: { connected: boolean; chainOk: boolean; pending: boolean }): string | null {
+export function startLobbyBlocker(input: { connected: boolean; pending: boolean }): string | null {
   if (!input.connected) return 'Connect a wallet first'
-  if (!input.chainOk) return 'Switch to Monad Testnet'
   if (input.pending) return 'Waiting for confirmation'
   return null
 }

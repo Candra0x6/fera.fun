@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { CoinAvatar } from './CoinAvatar'
-import { weiToMon } from '../chain/format'
+import { yoctoToNear } from '../chain/format'
 import { explorerAddressUrl } from '../chain/explorer'
 import { shortAddress } from '../chain/format'
 import { uiStore, useArenaState } from '../chain/session'
@@ -22,7 +22,7 @@ export function ChampionIsland() {
   const winner = state.optimistic.coins.find((coin) => coin.status === 'Champion') ?? state.optimistic.coins.find((coin) => coin.coinId === round.winnerCoinId)
   const pool = BigInt(round.redeemPool)
   const supply = BigInt(round.redeemSupply)
-  const ratePerMillion = supply > 0n ? weiToMon(((pool * 10n ** 24n) / supply).toString()) : 0
+  const ratePerMillion = supply > 0n ? yoctoToNear(((pool * 10n ** 24n) / supply).toString()) : 0
   return (
     <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-auto" role="dialog" aria-modal="true" aria-label="The Chosen One" data-testid="chosen-one-screen" onKeyDown={(event) => { if (event.key === 'Escape') uiStore.set((previous) => ({ ...previous, championClosed: true })) }}>
       <div className="cartoon-panel max-w-lg w-full p-6 text-center flex flex-col gap-4">
@@ -45,11 +45,11 @@ export function ChampionIsland() {
         <div className="hud-well grid grid-cols-2 gap-1.5 text-[11px] p-3 text-left">
           <div>
             <span className="text-[#4d6670] block text-[10px]">Redeem rate</span>
-            <span data-testid="redeem-rate" className="font-mono-num text-[#1f7a46] font-semibold">1M {winner?.ticker ?? 'tokens'} = {ratePerMillion.toFixed(4)} MON</span>
+            <span data-testid="redeem-rate" className="font-mono-num text-[#1f7a46] font-semibold">1M {winner?.ticker ?? 'tokens'} = {ratePerMillion.toFixed(4)} NEAR</span>
           </div>
           <div>
             <span className="text-[#4d6670] block text-[10px]">Final pool</span>
-            <span className="font-mono-num text-[#1f7a46] font-semibold">{weiToMon(round.redeemPool).toLocaleString('en-US', { maximumFractionDigits: 2 })} MON</span>
+            <span className="font-mono-num text-[#1f7a46] font-semibold">{yoctoToNear(round.redeemPool).toLocaleString('en-US', { maximumFractionDigits: 2 })} NEAR</span>
           </div>
           <div>
             <span className="text-[#4d6670] block text-[10px]">Clashes played</span>
@@ -61,8 +61,8 @@ export function ChampionIsland() {
           </div>
           {winner !== undefined ? (
             <div className="col-span-2 pt-1 border-t border-[#e3d1a6] flex items-center justify-between">
-              <span className="text-[#4d6670] text-[10px]">Token Address</span>
-              <a className="font-mono-num text-[10px] text-[#0369a1] select-text" href={explorerAddressUrl(winner.token)} target="_blank" rel="noopener noreferrer">{shortAddress(winner.token)}</a>
+              <span className="text-[#4d6670] text-[10px]">Creator</span>
+              <a className="font-mono-num text-[10px] text-[#0369a1] select-text" href={explorerAddressUrl(winner.creator)} target="_blank" rel="noopener noreferrer">{shortAddress(winner.creator)}</a>
             </div>
           ) : null}
         </div>

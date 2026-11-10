@@ -21,7 +21,7 @@ const base: DemoStatus = {
   canSeed: true,
   freeSlots: 28,
   busy: false,
-  balances: { owner: '12500000000000000000', seeder: '4' }
+  balances: { owner: '12500000000000000000000000', seeder: '4' }
 }
 
 function mockFetch(status: number, body: unknown) {
@@ -50,7 +50,7 @@ describe('demoEnablement', () => {
 
 describe('status line', () => {
   it('shows round, phase, coins and balances', () => {
-    expect(demoStatusLine(base, null)).toBe('Round 3 Lobby | coins 2/30 | owner 12.50 seeder 4 MON')
+    expect(demoStatusLine(base, null)).toBe('Round 3 Lobby | coins 2/30 | owner 12.50 seeder 4 NEAR')
   })
   it('falls back to the error or a loading note', () => {
     expect(demoStatusLine(null, 'Keeper unreachable')).toBe('Keeper unreachable')
@@ -85,9 +85,9 @@ describe('createDemoClient', () => {
     expect(describeDemoError(error)).toBe(message)
   })
   it('reports the shortfall on 402', async () => {
-    const { fn } = mockFetch(402, { error: 'insufficient funds', shortfall: '1500000000000000000' })
+    const { fn } = mockFetch(402, { error: 'insufficient funds', shortfall: '1500000000000000000000000' })
     const error = await createDemoClient({ baseUrl: 'http://k', token: 't', fetch: fn }).seedHouse(5).catch((e: unknown) => e)
-    expect(describeDemoError(error)).toBe('Insufficient funds, short by 1.50 MON')
+    expect(describeDemoError(error)).toBe('Insufficient funds, short by 1.50 NEAR')
   })
   it('reports network failure', async () => {
     const client = createDemoClient({ baseUrl: 'http://k', token: 't', fetch: () => Promise.reject(new Error('down')) })

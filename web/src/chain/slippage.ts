@@ -6,14 +6,22 @@ export function minOutWithSlippage(quoted: bigint, slippageBps: number = DEFAULT
   return minimum > 0n ? minimum : 1n
 }
 
-export function deadlineFrom(nowSeconds: number, ahead: number = DEADLINE_SECONDS): bigint {
-  return BigInt(Math.floor(nowSeconds) + ahead)
+export function deadlineMsFrom(nowMs: number, aheadSeconds: number = DEADLINE_SECONDS): number {
+  return Math.floor(nowMs) + aheadSeconds * 1000
 }
 
-export function parseMonInput(value: string): bigint | null {
+function parseDecimal(value: string, decimals: number): bigint | null {
   const trimmed = value.trim()
-  if (!/^\d+(\.\d{1,18})?$/.test(trimmed)) return null
+  if (!new RegExp(`^\\d+(\\.\\d{1,${decimals}})?$`).test(trimmed)) return null
   const [whole = '0', fraction = ''] = trimmed.split('.')
-  const wei = BigInt(whole) * 10n ** 18n + BigInt(fraction.padEnd(18, '0'))
-  return wei > 0n ? wei : null
+  const units = BigInt(whole) * 10n ** BigInt(decimals) + BigInt(fraction.padEnd(decimals, '0'))
+  return units > 0n ? units : null
+}
+
+export function parseNearInput(value: string): bigint | null {
+  return parseDecimal(value, 24)
+}
+
+export function parseTokenInput(value: string): bigint | null {
+  return parseDecimal(value, 18)
 }

@@ -1,17 +1,17 @@
 import { MONSTERS, SKINS } from '@animal/shared'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { asBigInt, launchGas, readArena } from '../chain/contract'
+import { launchCoinCall } from '../chain/arenaCalls'
+import { yoctoToNumber } from '../chain/format'
 import { launchBlocker, sanitizeTickerInput } from '../chain/launchRules'
 import { launchDisabledReason, launchEnabled } from '../chain/stage'
-import { parseMonInput } from '../chain/slippage'
-import { config, useArenaState } from '../chain/session'
+import { parseNearInput } from '../chain/slippage'
+import { useArenaState } from '../chain/session'
 import { useStore } from '../chain/store'
-import { isChainOk, runArenaTx, walletStore } from '../chain/wallet'
+import { isConnected, runArenaTx, walletStore } from '../chain/wallet'
 import { trapTab } from '../arena/launchInfo'
-import { ImagePicker } from './ImagePicker'
 import { LaunchPreviewPane, MonsterPicker, SkinPicker } from './LaunchPicker'
-import { BTN_NEUTRAL, BTN_PRIMARY, BTN_SECONDARY, INPUT, LABEL, cfgNumber, cfgWei, weiToNumber } from './shared'
+import { BTN_NEUTRAL, BTN_PRIMARY, BTN_SECONDARY, INPUT, LABEL, cfgNumber, cfgYocto } from './shared'
 
 type Step = 'idle' | 'wallet' | 'launching' | 'done'
 
@@ -23,43 +23,34 @@ export function LaunchIsland() {
   const [ticker, setTicker] = useState('SOLAR')
   const [monsterType, setMonsterType] = useState(0)
   const [skinId, setSkinId] = useState(0)
-  const [seed, setSeed] = useState('5')
-  const [image, setImage] = useState<string | null>(null)
+  const [seed, setSeed] = useState('0.1')
   const [step, setStep] = useState<Step>('idle')
-  const [floor, setFloor] = useState<bigint | null>(null)
-  useEffect(() => {
-    if (config.arena === null) return
-    void readArena('reserveFloor', []).then((value) => setFloor(asBigInt(value))).catch(() => setFloor(null))
-  }, [])
 
   const round = state.optimistic.round
-  const maxCoins = cfgNumber(state, 'maxCoins', 30)
-  const launchFee = cfgWei(state, 'launchFee', 10n ** 18n)
-  const minSeed = cfgWei(state, 'minSeed', 2n * 10n ** 18n)
-  const maxSeed = cfgWei(state, 'maxSeed', 50n * 10n ** 18n)
-  const mine = state.optimistic.coins.filter((coin) => wallet.address !== null && coin.creator.toLowerCase() === wallet.address.toLowerCase()).length
+  const maxCoins = cfgNumber(state, 'maxCoins', 6)
+  const launchFee = cfgYocto(state, 'launchFee', 10n ** 23n)
+  const minSeed = cfgYocto(state, 'minSeed', 10n ** 23n)
+  const maxSeed = cfgYocto(state, 'maxSeed', 10n ** 23n)
+  const mine = state.optimistic.coins.filter((coin) => wallet.accountId !== null && coin.creator === wallet.accountId).length
   const blocker = launchBlocker({
     name,
     ticker,
-    seedMon: seed,
-    minSeedMon: weiToNumber(minSeed),
-    maxSeedMon: weiToNumber(maxSeed),
+    seedNear: seed,
+    minSeedNear: yoctoToNumber(minSeed),
+    maxSeedNear: yoctoToNumber(maxSeed),
     phase: round?.phase ?? 'None',
     coinCount: round?.coinCount ?? 0,
     maxCoins,
     launchedByMe: mine,
-    connected: wallet.status === 'connected',
-    chainOk: isChainOk(wallet),
-    balanceMon: wallet.balance === null ? null : weiToNumber(wallet.balance),
-    launchFeeMon: weiToNumber(launchFee),
-    reserveFunded: floor === null || round === null ? true : BigInt(round.treasury) >= floor + BigInt(round.coinCount) * launchFee
+    connected: isConnected(wallet),
+    balanceNear: wallet.balance === null ? null : yoctoToNumber(wallet.balance),
+    launchFeeNear: yoctoToNumber(launchFee)
   })
   const selectedMonster = MONSTERS.find((monster) => monster.monsterType === monsterType)
   const selectedSkin = SKINS.find((skin) => skin.skinId === skinId)
   const overlayRef = useRef<HTMLDivElement>(null)
   const busy = step === 'wallet' || step === 'launching'
 
-  // Move focus into the dialog on open and give it back to the opener on close.
   useEffect(() => {
     if (!open) return undefined
     const opener = document.activeElement
@@ -70,23 +61,14 @@ export function LaunchIsland() {
   }, [open])
 
   async function submit(): Promise<void> {
-    const seedWei = parseMonInput(seed)
-    if (seedWei === null || blocker !== null || round === null) return
-    const baseArgs = [BigInt(round.roundId), name.trim(), ticker, monsterType, skinId] as const
+    const seedYocto = parseNearInput(seed)
+    if (seedYocto === null || blocker !== null || round === null) return
     const ok = await runArenaTx(
       { pending: `Launching ${ticker}`, done: 'Coin launched' },
-      {
-        functionName: image === null ? 'launchCoin' : 'launchCoinWithImage',
-        args: image === null ? baseArgs : [...baseArgs, image],
-        valueWei: launchFee + seedWei,
-        gas: launchGas(image)
-      },
+      launchCoinCall({ roundId: round.roundId, name: name.trim(), ticker, monsterType, skinId, deposit: launchFee + seedYocto }),
       (next) => setStep(next === 'wallet' ? 'wallet' : next === 'sent' ? 'launching' : next === 'done' ? 'done' : 'idle')
     )
-    if (ok) {
-      setOpen(false)
-      setImage(null)
-    }
+    if (ok) setOpen(false)
     setStep('idle')
   }
 
@@ -136,17 +118,16 @@ export function LaunchIsland() {
                 </div>
                 <MonsterPicker items={MONSTERS} value={monsterType} disabled={busy} onChange={setMonsterType} />
                 <SkinPicker items={SKINS} value={skinId} disabled={busy} onChange={setSkinId} />
-                <ImagePicker value={image} disabled={busy} onChange={setImage} />
                 <div>
-                  <label className={LABEL} htmlFor="launch-seed">Seed (MON)</label>
+                  <label className={LABEL} htmlFor="launch-seed">Seed (NEAR)</label>
                   <input id="launch-seed" inputMode="decimal" className={`${INPUT} font-mono-num text-[#1f7a46]`} value={seed} disabled={busy} onChange={(event) => setSeed(event.target.value)} />
                   <div className="mt-1 text-[10px] text-[#4d6670] flex justify-between">
-                    <span>Launch fee <span className="font-mono-num text-[#4d6670]">{weiToNumber(launchFee)} MON</span></span>
-                    <span>Seed {weiToNumber(minSeed)} to {weiToNumber(maxSeed)} MON</span>
+                    <span>Launch fee <span className="font-mono-num text-[#4d6670]">{yoctoToNumber(launchFee)} NEAR</span></span>
+                    <span>Seed {yoctoToNumber(minSeed)} to {yoctoToNumber(maxSeed)} NEAR</span>
                   </div>
                 </div>
                 <ol className="flex items-center gap-2 flex-wrap text-[10px] uppercase tracking-wider" aria-label="Launch steps">
-                  {([['wallet', 'Confirm in wallet'], ['launching', 'Launching'], ['done', 'Done']] as const).map(([key, label]) => (
+                  {([['wallet', 'Signing'], ['launching', 'Launching'], ['done', 'Done']] as const).map(([key, label]) => (
                     <li key={key} className={`px-2.5 py-0.5 rounded-full border-2 ${step === key ? 'bg-[#BFE8F7] text-[#075985] border-[#2b7a8e] font-extrabold' : 'text-[#4d6670] border-[#e3d1a6]'}`}>{label}</li>
                   ))}
                 </ol>

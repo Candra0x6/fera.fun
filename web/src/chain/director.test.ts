@@ -11,10 +11,10 @@ import type {
   FeedRow
 } from './director'
 
-const WEI = 10n ** 18n
+const YOCTO = 10n ** 24n
 
-function mon(value: number): string {
-  return (BigInt(Math.round(value * 1000)) * (WEI / 1000n)).toString()
+function near(value: number): string {
+  return (BigInt(Math.round(value * 1000)) * (YOCTO / 1000n)).toString()
 }
 
 function coin(coinId: number, rMon: number, overrides: Partial<DirectorCoin> = {}): DirectorCoin {
@@ -30,7 +30,7 @@ function coin(coinId: number, rMon: number, overrides: Partial<DirectorCoin> = {
     level: 1,
     xp: 0,
     wins: 0,
-    rMon: mon(rMon),
+    rMon: near(rMon),
     isHouse: false,
     ...overrides
   }
@@ -137,10 +137,10 @@ function clashArgs(winner: number, loser: number, clashId = 1): DirectorEnvelope
     loser,
     winProbBps: 5600,
     roll: 7000,
-    boost: mon(8),
-    consolation: mon(4.8),
-    toPot: mon(2.4),
-    toTreasury: mon(0.8)
+    boost: near(8),
+    consolation: near(4.8),
+    toPot: near(2.4),
+    toTreasury: near(0.8)
   }
 }
 
@@ -162,7 +162,7 @@ describe('director', () => {
     createDirector({ store: harness.store, bridge, nowSeconds: () => NOW })
     const trade = envelope(
       'Trade',
-      { roundId: 1, coinId: 0, trader: '0xabc', isBuy: true, monAmount: mon(30), tokenAmount: '1', rMon: mon(35), vMon: '1', vTok: '1' },
+      { roundId: 1, coinId: 0, trader: '0xabc', isBuy: true, monAmount: near(30), tokenAmount: '1', rMon: near(35), vMon: '1', vTok: '1' },
       'Proposed',
       NOW
     )
@@ -330,7 +330,7 @@ describe('director', () => {
     createDirector({ store: harness.store, bridge, nowSeconds: () => NOW })
     const launched = envelope(
       'CoinLaunched',
-      { roundId: 1, coinId: 7, token: '0x07', creator: '0x01', name: 'Seven', ticker: 'SEVEN', monsterType: 2, skinId: 1, seedMon: mon(5) },
+      { roundId: 1, coinId: 7, token: '0x07', creator: '0x01', name: 'Seven', ticker: 'SEVEN', monsterType: 2, skinId: 1, seedMon: near(5) },
       'Voted',
       NOW
     )
@@ -339,7 +339,7 @@ describe('director', () => {
     expect(log.spawned).toEqual([{ id: '1:7', animate: true }])
     const stale = envelope(
       'CoinLaunched',
-      { roundId: 1, coinId: 8, token: '0x08', creator: '0x01', name: 'Eight', ticker: 'EIGHT', monsterType: 1, skinId: 0, seedMon: mon(5) },
+      { roundId: 1, coinId: 8, token: '0x08', creator: '0x01', name: 'Eight', ticker: 'EIGHT', monsterType: 1, skinId: 0, seedMon: near(5) },
       'Voted',
       NOW - 60
     )
@@ -368,7 +368,7 @@ describe('director', () => {
     const clash = envelope('ClashResolved', clashArgs(1, 0), 'Voted', NOW)
     const settledEvent = envelope(
       'RoundSettled',
-      { roundId: 1, winnerCoinId: 1, redeemPool: mon(30), redeemSupply: '1' },
+      { roundId: 1, winnerCoinId: 1, redeemPool: near(30), redeemSupply: '1' },
       'Voted',
       NOW
     )

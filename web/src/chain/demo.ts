@@ -128,9 +128,9 @@ export function demoEnablement(status: DemoStatus | null, pending: DemoAction | 
 
 export function formatDemoBalance(value: string): string {
   if (value === '') return '?'
-  if (/^\d{13,}$/.test(value)) {
-    const wei = BigInt(value)
-    const hundredths = (wei * 100n) / 10n ** 18n
+  if (/^\d{20,}$/.test(value)) {
+    const yocto = BigInt(value)
+    const hundredths = (yocto * 100n) / 10n ** 24n
     return `${hundredths / 100n}.${String(hundredths % 100n).padStart(2, '0')}`
   }
   return value
@@ -140,13 +140,13 @@ export function demoStatusLine(status: DemoStatus | null, error: string | null):
   if (status === null) return error ?? 'Loading demo status'
   const round = status.roundId > 0 ? `Round ${status.roundId}` : 'No round'
   const phase = status.phase === '' ? 'None' : status.phase
-  return `${round} ${phase} | coins ${status.coinCount}/${status.maxCoins} | owner ${formatDemoBalance(status.balances.owner)} seeder ${formatDemoBalance(status.balances.seeder)} MON`
+  return `${round} ${phase} | coins ${status.coinCount}/${status.maxCoins} | owner ${formatDemoBalance(status.balances.owner)} seeder ${formatDemoBalance(status.balances.seeder)} NEAR`
 }
 
 export function describeDemoError(error: unknown): string {
   if (!(error instanceof DemoApiError)) return 'Demo request failed'
   if (error.status === 402) {
-    const short = error.shortfall === null ? '' : `, short by ${formatDemoBalance(error.shortfall)} MON`
+    const short = error.shortfall === null ? '' : `, short by ${formatDemoBalance(error.shortfall)} NEAR`
     return `Insufficient funds${short}`
   }
   if (error.status === 409) return error.message === '' ? 'Round already in progress' : error.message

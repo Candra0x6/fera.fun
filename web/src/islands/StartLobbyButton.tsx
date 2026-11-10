@@ -1,24 +1,20 @@
 import { useState } from 'react'
-import { GAS } from '../chain/contract'
+import { createRoundCall } from '../chain/arenaCalls'
 import { startLobbyBlocker } from '../chain/stage'
 import { useStore } from '../chain/store'
-import { isChainOk, runArenaTx, walletStore } from '../chain/wallet'
+import { isConnected, runArenaTx, walletStore } from '../chain/wallet'
 import { BTN_PRIMARY } from './shared'
 
 export function StartLobbyButton() {
   const wallet = useStore(walletStore)
   const [pending, setPending] = useState(false)
-  const blocker = startLobbyBlocker({ connected: wallet.status === 'connected', chainOk: isChainOk(wallet), pending })
+  const blocker = startLobbyBlocker({ connected: isConnected(wallet), pending })
 
   async function start(): Promise<void> {
     if (blocker !== null) return
     setPending(true)
     try {
-      await runArenaTx(
-        { pending: 'Starting a new lobby', done: 'New lobby started' },
-        { functionName: 'createDefaultRound', args: [], valueWei: 0n, gas: GAS.createDefaultRound },
-        () => undefined
-      )
+      await runArenaTx({ pending: 'Starting a new lobby', done: 'New lobby started' }, createRoundCall(), () => undefined)
     } finally {
       setPending(false)
     }

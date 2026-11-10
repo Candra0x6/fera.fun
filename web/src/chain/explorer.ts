@@ -1,9 +1,13 @@
-export const EXPLORER_BASE_URL = 'https://testnet.monadvision.com'
+export const EXPLORER_BASE_URL = 'https://testnet.nearblocks.io'
 
 export function explorerTxUrl(txHash: string): string {
-  return `${EXPLORER_BASE_URL}/tx/${txHash}`
+  return `${EXPLORER_BASE_URL}/txns/${txHash}`
 }
 
-export function explorerAddressUrl(address: string): string {
-  return `${EXPLORER_BASE_URL}/address/${address}`
+export function explorerAddressUrl(account: string): string {
+  return `${EXPLORER_BASE_URL}/address/${account}`
+}
+
+export function explorerEventUrl(txHash: string, arena: string): string {
+  return txHash === '' ? explorerAddressUrl(arena) : explorerTxUrl(txHash)
 }

@@ -1,40 +1,44 @@
-import { MONAD_TESTNET_HTTP_URLS, MONAD_TESTNET_ID, MONAD_TESTNET_WS_URLS } from '@animal/shared'
+export const DEFAULT_ARENA_ACCOUNT = 'fera-arena.testnet'
+export const DEFAULT_RPC_URLS: readonly string[] = ['https://test.rpc.fastnear.com', 'https://rpc.testnet.fastnear.com']
+
+export type NearNetwork = 'testnet' | 'mainnet'
 
 export interface WebConfig {
-  chainId: number
-  httpUrls: string[]
-  wsUrls: string[]
-  arena: `0x${string}` | null
+  network: NearNetwork
+  arena: string
+  rpcUrls: string[]
   roundId: number | null
   keeperUrl: string | null
-  deployBlock: number
 }
 
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 }
 
-function isAddress(value: string | null): value is `0x${string}` {
-  return value !== null && /^0x[0-9a-fA-F]{40}$/.test(value)
+function isAccountId(value: string | null): value is string {
+  return value !== null && /^[a-z0-9][a-z0-9._-]{1,62}[a-z0-9]$/.test(value)
+}
+
+function urlList(value: string | null): string[] {
+  if (value === null) return []
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => /^https?:\/\//.test(item))
 }
 
 export function readConfig(env: Record<string, unknown>): WebConfig {
-  const chainId = Number(text(env['VITE_CHAIN_ID']) ?? MONAD_TESTNET_ID)
-  const http = text(env['VITE_RPC_HTTP_URL'])
-  const ws = text(env['VITE_RPC_WS_URL'])
-  const arena = text(env['VITE_ARENA_ADDRESS'])
+  const network = text(env['VITE_NEAR_NETWORK']) === 'mainnet' ? 'mainnet' : 'testnet'
+  const arena = text(env['VITE_ARENA_ACCOUNT'])
+  const urls = urlList(text(env['VITE_RPC_URLS']))
   const roundText = text(env['VITE_ROUND_ID'])
   const round = roundText === null ? Number.NaN : Number(roundText)
   const keeper = text(env['VITE_KEEPER_URL'])
-  const deployText = text(env['VITE_DEPLOY_BLOCK'])
-  const deploy = deployText === null ? 0 : Number(deployText)
   return {
-    chainId: Number.isInteger(chainId) && chainId > 0 ? chainId : MONAD_TESTNET_ID,
-    httpUrls: http === null ? [...MONAD_TESTNET_HTTP_URLS] : [http],
-    wsUrls: ws === null ? [...MONAD_TESTNET_WS_URLS] : [ws],
-    arena: isAddress(arena) ? arena : null,
+    network,
+    arena: isAccountId(arena) ? arena : DEFAULT_ARENA_ACCOUNT,
+    rpcUrls: urls.length > 0 ? urls : [...DEFAULT_RPC_URLS],
     roundId: Number.isInteger(round) && round > 0 ? round : null,
-    keeperUrl: keeper === null ? null : keeper.replace(/\/+$/, ''),
-    deployBlock: Number.isInteger(deploy) && deploy > 0 ? deploy : 0
+    keeperUrl: keeper === null ? null : keeper.replace(/\/+$/, '')
   }
 }

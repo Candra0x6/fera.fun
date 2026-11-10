@@ -17,7 +17,7 @@ export function cfgNumber(state: ArenaState, key: string, fallback: number): num
   return typeof value === 'number' ? value : fallback
 }
 
-export function cfgWei(state: ArenaState, key: string, fallback: bigint): bigint {
+export function cfgYocto(state: ArenaState, key: string, fallback: bigint): bigint {
   const value = state.config?.[key]
   if (typeof value === 'string' && /^\d+$/.test(value)) return BigInt(value)
   if (typeof value === 'number') return BigInt(value)
@@ -33,6 +33,3 @@ export function findCoin(state: ArenaState, id: string | null): CoinView | undef
   return state.optimistic.coins.find((coin) => coinId(coin) === id)
 }
 
-export function weiToNumber(wei: bigint): number {
-  return Number(wei / 10n ** 12n) / 1e6
-}

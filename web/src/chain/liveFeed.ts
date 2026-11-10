@@ -1,7 +1,8 @@
-import { GET_LOGS_MAX_RANGE, MULTICALL3_ADDRESS, createChainFeed } from '@animal/shared'
+import { createNearFeed } from '@animal/shared'
 import type { ChainFeed } from '@animal/shared'
 import type { WebConfig } from './config'
 import { asBigInt, readArena } from './contract'
+import { createRelayFeed } from './relayFeed'
 import { createRoundFollower } from './roundFollow'
 import { setStatus, statusFromFeed } from './status'
 import type { SwitchableStore } from './switchableStore'
@@ -10,35 +11,27 @@ export interface LiveFeedHooks {
   onRoundSwitch: (roundId: number, previous: number | null) => void
 }
 
+const RELAY_STALL_MS = 10_000
+
 export function startLiveFeed(config: WebConfig, store: SwitchableStore, hooks: LiveFeedHooks): () => void {
-  if (config.arena === null) {
-    setStatus({ kind: 'disconnected', blockNumber: null, lagSeconds: 0 })
-    return () => undefined
-  }
-  const arena = config.arena
   let feed: ChainFeed | null = null
   let unsubscribers: Array<() => void> = []
+  let stallTimer: number | null = null
+
+  function clearStall(): void {
+    if (stallTimer !== null) window.clearTimeout(stallTimer)
+    stallTimer = null
+  }
 
   function closeFeed(): void {
+    clearStall()
     for (const unsubscribe of unsubscribers) unsubscribe()
     unsubscribers = []
     feed?.stop()
     feed = null
   }
 
-  function openFeed(roundId: number): void {
-    const next = createChainFeed(
-      {
-        wsUrls: config.wsUrls,
-        httpUrls: config.httpUrls,
-        arena,
-        roundId,
-        deployBlock: config.deployBlock,
-        multicall3: MULTICALL3_ADDRESS,
-        getLogsMaxRange: GET_LOGS_MAX_RANGE
-      },
-      { createWebSocket: (url) => new WebSocket(url), fetch: (url, init) => fetch(url, init) }
-    )
+  function attach(next: ChainFeed, onStall: (() => void) | null): void {
     feed = next
     unsubscribers = [
       next.onSnapshot((snapshot) => {
@@ -56,16 +49,43 @@ export function startLiveFeed(config: WebConfig, store: SwitchableStore, hooks: 
         if (feed === next) store.retract(retract)
       }),
       next.onStatus((feedStatus) => {
-        if (feed === next) setStatus(statusFromFeed(feedStatus))
+        if (feed !== next) return
+        setStatus(statusFromFeed(feedStatus))
+        if (onStall === null) return
+        if (feedStatus.upstream === 'reconnecting') {
+          if (stallTimer === null) stallTimer = window.setTimeout(onStall, RELAY_STALL_MS)
+        } else {
+          clearStall()
+        }
       })
     ]
-    setStatus({ kind: 'syncing', blockNumber: null, lagSeconds: 0 })
+  }
+
+  function openRpcFeed(roundId: number): void {
+    const next = createNearFeed({ rpcUrls: config.rpcUrls, arena: config.arena, roundId })
+    attach(next, null)
     void next.start().catch(() => setStatus({ kind: 'disconnected', blockNumber: null, lagSeconds: 0 }))
+  }
+
+  function openFeed(roundId: number): void {
+    setStatus({ kind: 'syncing', blockNumber: null, lagSeconds: 0 })
+    if (config.keeperUrl === null) {
+      openRpcFeed(roundId)
+      return
+    }
+    const relay = createRelayFeed({ baseUrl: config.keeperUrl, roundId })
+    const fallBack = (): void => {
+      if (feed !== relay) return
+      closeFeed()
+      openRpcFeed(roundId)
+    }
+    attach(relay, fallBack)
+    relay.start().catch(fallBack)
   }
 
   const follower = createRoundFollower({
     readCurrent: async () => {
-      const roundId = Number(asBigInt(await readArena('currentRoundId', [])))
+      const roundId = Number(asBigInt(await readArena('current_round_id', {})))
       if (roundId === 0 && feed === null) setStatus({ kind: 'live', blockNumber: null, lagSeconds: 0 })
       return roundId
     },

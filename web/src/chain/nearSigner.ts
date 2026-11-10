@@ -19,11 +19,6 @@ export interface SignerOptions {
 }
 
 export const PLAYER_CALL_GAS = 30_000_000_000_000n
-export const DEADLINE_WINDOW_MS = 120_000
-
-export function deadlineFrom(nowMs: number): number {
-  return nowMs + DEADLINE_WINDOW_MS
-}
 
 export async function createNearSigner(options: SignerOptions): Promise<ArenaSigner> {
   const { Account, FailoverRpcProvider, JsonRpcProvider, KeyPairSigner } = await import('near-api-js')
