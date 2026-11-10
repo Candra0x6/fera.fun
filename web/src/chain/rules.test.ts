@@ -103,7 +103,12 @@ describe('readConfig', () => {
     expect(config.arena).toBe('fera-arena.testnet')
     expect(config.roundId).toBeNull()
     expect(config.keeperUrl).toBeNull()
-    expect(config.rpcUrls).toEqual(['https://test.rpc.fastnear.com', 'https://rpc.testnet.fastnear.com'])
+    expect(config.rpcUrls).toEqual([
+      'https://test.rpc.fastnear.com',
+      'https://rpc.testnet.fastnear.com',
+      'https://near-testnet.drpc.org',
+      'https://rpc.testnet.near.org'
+    ])
   })
   it('reads the VITE variables', () => {
     const config = readConfig({
@@ -119,6 +124,6 @@ describe('readConfig', () => {
   it('ignores a malformed arena account and unusable rpc urls', () => {
     const config = readConfig({ VITE_ARENA_ACCOUNT: 'NOPE!', VITE_RPC_URLS: 'not-a-url' })
     expect(config.arena).toBe('fera-arena.testnet')
-    expect(config.rpcUrls).toHaveLength(2)
+    expect(config.rpcUrls).toHaveLength(4)
   })
 })

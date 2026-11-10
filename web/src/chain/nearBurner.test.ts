@@ -143,6 +143,42 @@ describe('createBurner', () => {
     expect(order).toEqual(['start buy', 'end buy', 'start sell', 'end sell'])
   })
 
+  it('waits for the new account to be final before it reports ready', async () => {
+    const h = harness({ ok: true, accountId: 'fera-abc.testnet', amount: '1' })
+    const finalities: string[] = []
+    let visible = 0
+    h.deps.rpc = {
+      viewAccount: (_accountId, finality) => {
+        finalities.push(finality ?? 'optimistic')
+        visible += 1
+        return Promise.resolve(visible < 4 ? null : { amount: 2n * YOCTO_PER_NEAR, storageUsage: 182, blockHeight: 1 })
+      }
+    }
+    const burner = createBurner(h.deps)
+    await burner.connect()
+    expect(burner.store.get().balance).toBe(2n * YOCTO_PER_NEAR)
+    expect(finalities.filter((f) => f === 'final').length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('warms the signer up on connect and ignores a failing warm-up', async () => {
+    const h = harness({ ok: true, accountId: 'fera-abc.testnet', amount: '1' })
+    h.balances.set('fera-abc.testnet', 10n * YOCTO_PER_NEAR)
+    let warmed = 0
+    h.deps.createSigner = () =>
+      Promise.resolve({
+        send: () => Promise.resolve('hash'),
+        warmUp: () => {
+          warmed += 1
+          return Promise.reject(new Error('rpc down'))
+        }
+      })
+    const burner = createBurner(h.deps)
+    await burner.connect()
+    await new Promise<void>((resolve) => setTimeout(resolve, 5))
+    expect(warmed).toBe(1)
+    expect(burner.store.get().status).toBe('ready')
+  })
+
   it('refuses to send before it is connected', async () => {
     const h = harness({ ok: true, accountId: 'x.testnet', amount: '1' })
     const burner = createBurner(h.deps)

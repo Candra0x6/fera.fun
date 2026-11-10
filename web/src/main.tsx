@@ -67,7 +67,7 @@ function withFinale(bridge: ArenaBridge): ArenaBridge {
 }
 
 async function startFixtureReplay(): Promise<void> {
-  const { default: rawFixture } = await import('@animal/shared/fixtures/arena-replay.json')
+  const { default: rawFixture } = await import('@animal/shared/fixtures/arena-near-replay.json')
   const messages = parseFixture(rawFixture)
   const snapshot = messages.find((item) => item.message.kind === 'snapshot')
   const baseSeconds = snapshot?.message.kind === 'snapshot' ? snapshot.message.data.serverTime : Date.now() / 1000
@@ -88,7 +88,7 @@ async function startFixtureReplay(): Promise<void> {
 }
 
 async function startStress(count: number): Promise<void> {
-  const { default: rawFixture } = await import('@animal/shared/fixtures/arena-replay.json')
+  const { default: rawFixture } = await import('@animal/shared/fixtures/arena-near-replay.json')
   const first = parseFixture(rawFixture).find((item) => item.message.kind === 'snapshot')
   if (first === undefined || first.message.kind !== 'snapshot') return
   setStatus({ kind: 'replay', blockNumber: null, lagSeconds: 0 })

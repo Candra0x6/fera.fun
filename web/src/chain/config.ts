@@ -1,5 +1,10 @@
 export const DEFAULT_ARENA_ACCOUNT = 'fera-arena.testnet'
-export const DEFAULT_RPC_URLS: readonly string[] = ['https://test.rpc.fastnear.com', 'https://rpc.testnet.fastnear.com']
+export const DEFAULT_RPC_URLS: readonly string[] = [
+  'https://test.rpc.fastnear.com',
+  'https://rpc.testnet.fastnear.com',
+  'https://near-testnet.drpc.org',
+  'https://rpc.testnet.near.org'
+]
 
 export type NearNetwork = 'testnet' | 'mainnet'
 

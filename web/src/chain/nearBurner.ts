@@ -12,6 +12,8 @@ export const YOCTO_PER_NEAR = 10n ** 24n
 export const LOW_BALANCE_YOCTO = YOCTO_PER_NEAR
 export const BLOCK_MS = 600
 const MIN_GAP_BLOCKS = 4
+const FINAL_WAIT_ATTEMPTS = 24
+const FINAL_WAIT_MS = 500
 
 export interface StorageLike {
   getItem(key: string): string | null
@@ -134,9 +136,18 @@ export function createBurner(deps: BurnerDeps): Burner {
     return fresh
   }
 
-  async function readBalance(accountId: string): Promise<bigint | null> {
-    const view = await deps.rpc.viewAccount(accountId)
+  async function readBalance(accountId: string, finality: 'optimistic' | 'final' = 'optimistic'): Promise<bigint | null> {
+    const view = await deps.rpc.viewAccount(accountId, finality)
     return view === null ? null : view.amount
+  }
+
+  async function waitForFinalBalance(accountId: string): Promise<bigint | null> {
+    for (let attempt = 0; attempt < FINAL_WAIT_ATTEMPTS; attempt += 1) {
+      const balance = await readBalance(accountId, 'final').catch(() => null)
+      if (balance !== null) return balance
+      await sleep(FINAL_WAIT_MS)
+    }
+    return null
   }
 
   async function dripNow(): Promise<void> {
@@ -198,11 +209,12 @@ export function createBurner(deps: BurnerDeps): Burner {
         if (storedAccount === null || balance === null) {
           await drip()
           const accountId = store.get().accountId
-          balance = accountId === null ? null : await readBalance(accountId).catch(() => null)
+          balance = accountId === null ? null : await waitForFinalBalance(accountId)
         }
         store.set((previous) => ({ ...previous, status: 'ready', balance }))
         if (balance !== null && balance < LOW_BALANCE_YOCTO) await drip().catch(() => undefined)
         await refreshBalance()
+        void ensureSigner().then((ready) => ready.warmUp?.()).catch(() => undefined)
       } catch {
         store.set((previous) => ({ ...previous, status: 'failed' }))
       }

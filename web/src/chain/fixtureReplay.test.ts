@@ -1,6 +1,6 @@
 import { createArenaStore, parseFixture, replayFixture } from '@animal/shared'
 import { describe, expect, it } from 'vitest'
-import rawFixture from '@animal/shared/fixtures/arena-replay.json'
+import rawFixture from '@animal/shared/fixtures/arena-near-replay.json'
 import type { ArenaEvents } from '../arena/bridge'
 import { createDirector } from './director'
 import type { DirectorBridge, FeedRow } from './director'
@@ -79,7 +79,7 @@ describe('director over the shared fixture replay', () => {
     expect(levelUps.length).toBeGreaterThan(0)
     expect(locks.length).toBeGreaterThan(0)
     expect(resolves.length).toBeGreaterThan(0)
-    expect(cancels).toHaveLength(1)
+    expect(cancels).toHaveLength(0)
     expect(settled).toHaveLength(1)
   })
 })

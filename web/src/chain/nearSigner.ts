@@ -9,6 +9,7 @@ export interface ArenaCall {
 
 export interface ArenaSigner {
   send(call: ArenaCall): Promise<string>
+  warmUp?(): Promise<void>
 }
 
 export interface SignerOptions {
@@ -23,8 +24,13 @@ export const PLAYER_CALL_GAS = 30_000_000_000_000n
 export async function createNearSigner(options: SignerOptions): Promise<ArenaSigner> {
   const { Account, FailoverRpcProvider, JsonRpcProvider, KeyPairSigner } = await import('near-api-js')
   const provider = new FailoverRpcProvider(options.rpcUrls.map((url) => new JsonRpcProvider({ url })))
-  const account = new Account(options.accountId, provider, KeyPairSigner.fromSecretKey(options.secretKey))
+  const keySigner = KeyPairSigner.fromSecretKey(options.secretKey)
+  const account = new Account(options.accountId, provider, keySigner)
   return {
+    async warmUp() {
+      const publicKey = await keySigner.getPublicKey()
+      await Promise.allSettled([account.getAccessKey(publicKey), account.getState()])
+    },
     async send(call) {
       const outcome = await account.callFunctionRaw({
         contractId: options.arena,
