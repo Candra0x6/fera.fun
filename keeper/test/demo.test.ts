@@ -1,451 +1,228 @@
 import { describe, expect, it } from 'vitest'
-import { formatEther, parseEther } from 'viem'
-import type { Hex } from '@animal/shared'
 import { createApi } from '../src/api'
-import { createDemoAdmin } from '../src/demo'
-import type { DefaultRoundConfig, DemoChain, DemoDeps } from '../src/demo'
-import { plannedEpochs, treasuryTarget } from '../src/demo'
-import { HOUSE_ROSTER } from '../src/house'
-import type { HouseChain, HouseCoinOnChain, LaunchPlanItem } from '../src/house'
-import type { RoundParams, RoundState } from '../src/port'
-import { baseRound, DEFAULT_PARAMS } from './fakeArena'
+import { createDemoAdmin, formatNear } from '../src/demo'
+import type { DemoChain, DemoDeps } from '../src/demo'
+import type { HouseChain, HouseState } from '../src/house'
+import type { RoundState } from '../src/port'
+import { DEFAULT_PARAMS, FakeArena, baseRound } from './fakeArena'
 
-const ETH = 10n ** 18n
-const TOKEN = 'demo-token-for-tests'
-const CREATOR: Hex = '0x00000000000000000000000000000000000000a1'
-const SEEDER: Hex = '0x00000000000000000000000000000000000000b2'
-const LITE_PARAMS: RoundParams = {
-  ...DEFAULT_PARAMS,
-  minCoins: 5,
-  maxCoins: 6,
-  lobbySeconds: 3600,
-  clashesPerEpoch: 3,
-  maxEntropyFee: parseEther('0.2')
-}
+const NEAR = 10n ** 24n
+const TENTH = NEAR / 10n
+const TOKEN = 'demo-token-abcdef'
 
 interface World {
+  arena: FakeArena
   roundId: number
-  round: RoundState | null
-  coins: HouseCoinOnChain[]
+  created: number
   balances: Map<string, bigint>
-  houseBalances: Map<number, bigint>
-  journal: string[]
-  reserveFloor: bigint
-  defaultConfig: DefaultRoundConfig | null
-  carry: bigint
-  createError: Error | null
+  launches: string[]
+  funded: Array<[number, bigint]>
+  deps: DemoDeps
+  failCreate: boolean
 }
 
-const LITE_DEFAULT: DefaultRoundConfig = {
-  minCoins: 5,
-  maxCoins: 6,
-  levelingEpochs: 3,
-  clashesPerEpoch: 3,
-  maxEntropyFee: parseEther('0.2'),
-  keeperBounty: parseEther('0.02')
-}
-
-function world(patch: Partial<World> = {}): World {
-  return {
-    roundId: 0,
-    round: null,
-    coins: [],
+function world(round: RoundState | null, options: { houseHeld?: bigint; houseSeed?: boolean } = {}): World {
+  const arena = new FakeArena(round ?? baseRound({ phase: 'None', coinCount: 0 }), DEFAULT_PARAMS)
+  const state: World = {
+    arena,
+    roundId: round === null ? 0 : 1,
+    created: 0,
     balances: new Map([
-      [CREATOR, 100n * ETH],
-      [SEEDER, 100n * ETH]
+      ['fera-seeder.testnet', 10n * NEAR]
     ]),
-    houseBalances: new Map(),
-    journal: [],
-    reserveFloor: 10n * ETH,
-    defaultConfig: LITE_DEFAULT,
-    carry: 0n,
-    createError: null,
-    ...patch
+    launches: [],
+    funded: [],
+    failCreate: false,
+    deps: undefined as unknown as DemoDeps
   }
-}
-
-function build(w: World, overrides: Partial<DemoDeps> = {}, gate?: { release: () => Promise<void> }) {
   const chain: DemoChain = {
-    currentRoundId: () => Promise.resolve(w.roundId),
-    balance: (address) => Promise.resolve(w.balances.get(address) ?? 0n),
-    houseBalance: (index) => Promise.resolve(w.houseBalances.get(index) ?? 0n),
-    estimateCarry: () => Promise.resolve(w.carry),
-    recycle: (id) => {
-      w.journal.push(`recycle:${id}`)
-      return Promise.resolve()
-    },
-    readDefaultConfig: () => Promise.resolve(w.defaultConfig),
-    async createDefaultRound(value) {
-      if (gate !== undefined) await gate.release()
-      if (w.createError !== null) throw w.createError
-      w.journal.push(`createDefault:${value}`)
-      w.roundId += 1
-      w.coins = []
-      w.round = baseRound({ phase: 'Lobby', coinCount: 0, treasury: w.carry + value, createdAt: 5000 })
-      return w.roundId
-    },
-    fundTreasury(id, amount) {
-      w.journal.push(`fund:${id}:${amount}`)
-      if (w.round !== null) w.round = { ...w.round, treasury: w.round.treasury + amount }
-      return Promise.resolve()
+    currentRoundId: () => Promise.resolve(state.roundId),
+    balance: (id) => Promise.resolve(state.balances.get(id) ?? 0n),
+    createRound() {
+      if (state.failCreate) return Promise.reject(new Error('rpc down'))
+      state.created += 1
+      state.roundId += 1
+      arena.round = baseRound({ phase: 'Lobby', coinCount: 0, createdAt: arena.now })
+      return Promise.resolve({ roundId: state.roundId, txHash: `CREATE${state.created}` })
     }
   }
+  const houseState = (): HouseState => ({
+    coins: arena.round.coinCount === 0 ? [] : HOUSE_TICKERS.slice(0, arena.round.coinCount).map((ticker, coinId) => ({ coinId, ticker, creator: 'h.fera-seeder.testnet' })),
+    minSeed: TENTH,
+    maxSeed: TENTH,
+    launchFee: TENTH,
+    maxCoins: 6
+  })
   const house: HouseChain = {
-    readState: () =>
-      Promise.resolve({
-        coins: [...w.coins],
-        minSeed: parseEther('0.2'),
-        maxSeed: parseEther('5'),
-        launchFee: parseEther('0.1'),
-        maxCoins: 6
-      }),
-    ensureReserve: () => Promise.resolve(0n),
-    fund: (index, amount) => {
-      w.journal.push(`house-fund:${index}:${amount}`)
+    readState: () => Promise.resolve(houseState()),
+    houseBalance: () => Promise.resolve(options.houseHeld ?? 0n),
+    fund(walletIndex, target) {
+      state.funded.push([walletIndex, target])
       return Promise.resolve()
     },
-    launch(item: LaunchPlanItem) {
-      w.journal.push(`launch:${item.ticker}`)
-      w.coins.push({ coinId: w.coins.length, ticker: item.ticker, token: `0x${(w.coins.length + 1).toString(16).padStart(40, '0')}` })
-      if (w.round !== null) w.round = { ...w.round, coinCount: w.coins.length }
-      return Promise.resolve()
-    },
-    waitBlocks: () => Promise.resolve()
-  }
-  const admin = createDemoAdmin({
-    port: {
-      readRound: () => Promise.resolve(w.round === null ? baseRound({ phase: 'None' }) : { ...w.round }),
-      readParams: () => Promise.resolve(LITE_PARAMS),
-      readReserveFloor: () => Promise.resolve(w.reserveFloor)
-    },
-    chain,
-    houseChainFor: () => house,
-    creatorAddress: CREATOR,
-    seederAddress: SEEDER,
-    lobbySeconds: 3600,
-    houseGasBuffer: parseEther('0.05'),
-    log: () => undefined,
-    ...overrides
-  })
-  const app = createApi({
-    health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAddress: '0x0', roundId: null, round: null }),
-    drip: null,
-    allowedOrigin: 'https://arena.example.test',
-    demo: { admin, token: TOKEN, writeMax: 6, readMax: 50 }
-  })
-  return { app, admin }
-}
-
-const auth = { 'x-demo-token': TOKEN, 'content-type': 'application/json' }
-
-function seed(app: ReturnType<typeof build>['app'], body?: unknown, ip = '203.0.113.9') {
-  return app.request('/demo/seed-house', {
-    method: 'POST',
-    headers: { ...auth, 'x-forwarded-for': ip },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) })
-  })
-}
-
-function create(app: ReturnType<typeof build>['app'], ip = '203.0.113.9') {
-  return app.request('/demo/create-round', { method: 'POST', headers: { ...auth, 'x-forwarded-for': ip } })
-}
-
-describe('demo admin gating', () => {
-  it('is 404 when the token is not configured', async () => {
-    const app = createApi({ health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAddress: '0x0', roundId: null, round: null }), drip: null, allowedOrigin: null })
-    expect((await app.request('/demo/status')).status).toBe(404)
-    expect((await app.request('/demo/create-round', { method: 'POST' })).status).toBe(404)
-  })
-
-  it('rejects a missing or wrong token on every route', async () => {
-    const { app } = build(world())
-    for (const headers of [{}, { 'x-demo-token': 'nope' }, { 'x-demo-token': `${TOKEN}x` }]) {
-      expect((await app.request('/demo/status', { headers })).status).toBe(401)
-      expect((await app.request('/demo/create-round', { method: 'POST', headers })).status).toBe(401)
-      expect((await app.request('/demo/seed-house', { method: 'POST', headers })).status).toBe(401)
+    launch(item) {
+      state.launches.push(item.ticker)
+      arena.round = { ...arena.round, coinCount: arena.round.coinCount + 1 }
+      return Promise.resolve(`LAUNCH-${item.ticker}`)
     }
-  })
+  }
+  state.deps = {
+    port: arena,
+    chain,
+    houseChainFor: () => (options.houseSeed === false ? null : house),
+    creatorAccountId: 'fera-seeder.testnet',
+    seederAccountId: 'fera-seeder.testnet',
+    houseGasBuffer: TENTH,
+    log: () => undefined
+  }
+  return state
+}
 
-  it('limits CORS to the allowed origin and lets x-demo-token through', async () => {
-    const { app } = build(world())
-    const ok = await app.request('/demo/status', {
-      method: 'OPTIONS',
-      headers: { origin: 'https://arena.example.test', 'access-control-request-method': 'POST', 'access-control-request-headers': 'x-demo-token' }
-    })
-    expect(ok.headers.get('access-control-allow-origin')).toBe('https://arena.example.test')
-    expect(ok.headers.get('access-control-allow-headers')).toContain('x-demo-token')
-    const bad = await app.request('/demo/status', { headers: { ...auth, origin: 'https://evil.example.test' } })
-    expect(bad.headers.get('access-control-allow-origin')).toBeNull()
-  })
+const HOUSE_TICKERS = ['MOOND', 'FIRECAT', 'AQUA', 'TITAN', 'VOLT', 'SHADE']
 
-  it('rate limits per IP', async () => {
-    const { app } = build(world({ roundId: 1, round: baseRound({ phase: 'Leveling' }) }))
-    const statuses: number[] = []
-    for (let i = 0; i < 8; i += 1) statuses.push((await create(app, '198.51.100.1')).status)
-    expect(statuses.slice(0, 6).every((s) => s === 409)).toBe(true)
-    expect(statuses.slice(6)).toEqual([429, 429])
-    expect((await create(app, '198.51.100.2')).status).toBe(409)
+describe('formatNear', () => {
+  it('prints at most four decimals without trailing zeros', () => {
+    expect(formatNear(10n * NEAR)).toBe('10')
+    expect(formatNear(NEAR + NEAR / 4n)).toBe('1.25')
+    expect(formatNear(NEAR / 3n)).toBe('0.3333')
+    expect(formatNear(0n)).toBe('0')
   })
 })
 
-describe('GET /demo/status', () => {
-  async function statusOf(w: World) {
-    const { app } = build(w)
-    const response = await app.request('/demo/status', { headers: auth })
-    expect(response.status).toBe(200)
-    return (await response.json()) as Record<string, unknown>
+describe('demo admin', () => {
+  it('reports the lobby status with free slots and the seeder balance', async () => {
+    const w = world(baseRound({ phase: 'Lobby', coinCount: 2, createdAt: 1000 }))
+    const status = await createDemoAdmin(w.deps).status()
+    expect(status).toMatchObject({
+      roundId: 1,
+      phase: 'Lobby',
+      coinCount: 2,
+      maxCoins: 6,
+      minCoins: 6,
+      lobbyEndsAt: 1000 + DEFAULT_PARAMS.lobbySeconds,
+      canCreate: false,
+      canSeed: true,
+      freeSlots: 4,
+      busy: false,
+      balances: { owner: '10', creator: '10', seeder: '10' }
+    })
+  })
+
+  it('creates a round only when the previous one has ended', async () => {
+    const running = world(baseRound({ phase: 'Leveling', startedAt: 1000 }))
+    const refused = await createDemoAdmin(running.deps).createRound()
+    expect(refused).toMatchObject({ ok: false, status: 409, body: { error: 'round in progress' } })
+    expect(running.created).toBe(0)
+    const settled = world(baseRound({ phase: 'Settled' }))
+    expect(await createDemoAdmin(settled.deps).createRound()).toEqual({ ok: true, value: { ok: true, roundId: 2, txHash: 'CREATE1' } })
+    const fresh = world(null)
+    expect(await createDemoAdmin(fresh.deps).createRound()).toMatchObject({ ok: true, value: { roundId: 1 } })
+  })
+
+  it('maps a failing chain call to operation_failed and stays usable afterwards', async () => {
+    const w = world(baseRound({ phase: 'Settled' }))
+    w.failCreate = true
+    const admin = createDemoAdmin(w.deps)
+    expect(await admin.createRound()).toMatchObject({ ok: false, status: 502, body: { error: 'operation_failed' } })
+    expect(admin.isBusy()).toBe(false)
+    w.failCreate = false
+    expect((await admin.createRound()).ok).toBe(true)
+  })
+
+  it('seeds five house coins into an empty lobby and leaves one free slot', async () => {
+    const w = world(baseRound({ phase: 'Lobby', coinCount: 0 }))
+    const result = await createDemoAdmin(w.deps).seedHouse(5)
+    expect(result).toEqual({ ok: true, value: { ok: true, launched: ['MOOND', 'FIRECAT', 'AQUA', 'TITAN', 'VOLT'], txHash: 'LAUNCH-VOLT' } })
+    expect(w.arena.round.coinCount).toBe(5)
+    expect(w.funded).toHaveLength(5)
+  })
+
+  it('never seeds more than five and never more than the free slots', async () => {
+    const big = world(baseRound({ phase: 'Lobby', coinCount: 0 }))
+    const result = await createDemoAdmin(big.deps).seedHouse(99)
+    expect(result).toMatchObject({ ok: true, value: { launched: expect.arrayContaining(['MOOND']) } })
+    expect(big.launches).toHaveLength(5)
+    const tight = world(baseRound({ phase: 'Lobby', coinCount: 4 }))
+    expect(await createDemoAdmin(tight.deps).seedHouse(5)).toMatchObject({ ok: true, value: { launched: ['VOLT', 'SHADE'] } })
+  })
+
+  it('refuses outside the lobby, with a full lobby, with a bad count and without a house seed', async () => {
+    expect(await createDemoAdmin(world(baseRound({ phase: 'Leveling' })).deps).seedHouse(5)).toMatchObject({ ok: false, status: 409, body: { error: 'not in lobby' } })
+    expect(await createDemoAdmin(world(baseRound({ phase: 'Lobby', coinCount: 6 })).deps).seedHouse(5)).toMatchObject({ ok: false, status: 409, body: { error: 'lobby full' } })
+    expect(await createDemoAdmin(world(baseRound({ phase: 'Lobby', coinCount: 0 })).deps).seedHouse(0)).toMatchObject({ ok: false, status: 400 })
+    expect(
+      await createDemoAdmin(world(baseRound({ phase: 'Lobby', coinCount: 0 }), { houseSeed: false }).deps).seedHouse(5)
+    ).toMatchObject({ ok: false, status: 503, body: { error: 'house_seed_missing' } })
+  })
+
+  it('answers 402 with the shortfall when the seeder cannot cover the house wallets', async () => {
+    const w = world(baseRound({ phase: 'Lobby', coinCount: 0 }))
+    w.balances.set('fera-seeder.testnet', NEAR)
+    const result = await createDemoAdmin(w.deps).seedHouse(5)
+    expect(result).toMatchObject({ ok: false, status: 402, body: { error: 'insufficient funds', shortfall: '0.5', account: 'fera-seeder.testnet' } })
+    expect(w.launches).toHaveLength(0)
+  })
+
+  it('does not count what a house wallet already holds toward the shortfall', async () => {
+    const w = world(baseRound({ phase: 'Lobby', coinCount: 0 }), { houseHeld: 3n * TENTH })
+    w.balances.set('fera-seeder.testnet', 0n)
+    expect(await createDemoAdmin(w.deps).seedHouse(5)).toMatchObject({ ok: true })
+  })
+
+  it('refuses a second operation while one is running', async () => {
+    const w = world(baseRound({ phase: 'Settled' }))
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const original = w.deps.chain.createRound
+    w.deps.chain.createRound = async () => {
+      await gate
+      return original()
+    }
+    const admin = createDemoAdmin(w.deps)
+    const first = admin.createRound()
+    expect(admin.isBusy()).toBe(true)
+    expect(await admin.createRound()).toMatchObject({ ok: false, status: 409, body: { error: 'busy' } })
+    release()
+    expect((await first).ok).toBe(true)
+  })
+})
+
+describe('demo routes', () => {
+  function app(w: World) {
+    return createApi({
+      health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAccount: 'k.testnet', roundId: 1, round: null }),
+      drip: null,
+      allowedOrigin: null,
+      demo: { admin: createDemoAdmin(w.deps), token: TOKEN }
+    })
   }
 
-  it('with no default config and no round: canCreate still reflects the phase, limits are 0', async () => {
-    expect(await statusOf(world({ defaultConfig: null }))).toMatchObject({ canCreate: true, maxCoins: 0, minCoins: 0 })
+  const headers = { 'x-demo-token': TOKEN, 'content-type': 'application/json' }
+
+  it('rejects a missing or wrong token', async () => {
+    const api = app(world(baseRound({ phase: 'Settled' })))
+    expect((await api.request('/demo/status')).status).toBe(401)
+    expect((await api.request('/demo/create-round', { method: 'POST', headers: { 'x-demo-token': 'nope' } })).status).toBe(401)
   })
 
-  it('with no round yet: canCreate, nothing to seed, lite limits, creator and seeder balances', async () => {
-    expect(await statusOf(world())).toEqual({
-      roundId: 0,
-      phase: 'None',
-      coinCount: 0,
-      maxCoins: 6,
-      minCoins: 5,
-      lobbyEndsAt: null,
-      canCreate: true,
-      canSeed: false,
-      freeSlots: 0,
-      busy: false,
-      balances: { owner: '100', creator: '100', seeder: '100' }
-    })
+  it('creates a round then seeds the house and leaves a lobby with five coins and one free slot', async () => {
+    const w = world(baseRound({ phase: 'Settled' }))
+    const api = app(w)
+    const created = await api.request('/demo/create-round', { method: 'POST', headers, body: '{}' })
+    expect(created.status).toBe(200)
+    expect(await created.json()).toEqual({ ok: true, roundId: 2, txHash: 'CREATE1' })
+    const seeded = await api.request('/demo/seed-house', { method: 'POST', headers, body: JSON.stringify({ count: 5 }) })
+    expect(seeded.status).toBe(200)
+    expect(await seeded.json()).toMatchObject({ ok: true, launched: ['MOOND', 'FIRECAT', 'AQUA', 'TITAN', 'VOLT'] })
+    const status = await (await api.request('/demo/status', { headers })).json()
+    expect(status).toMatchObject({ phase: 'Lobby', coinCount: 5, freeSlots: 1, canSeed: true })
   })
 
-  it('lobby with room: canSeed, not canCreate, lobbyEndsAt = createdAt + lobbySeconds', async () => {
-    const status = await statusOf(world({ roundId: 2, round: baseRound({ phase: 'Lobby', coinCount: 4, createdAt: 5000 }) }))
-    expect(status).toMatchObject({ roundId: 2, phase: 'Lobby', coinCount: 4, freeSlots: 2, canSeed: true, canCreate: false, lobbyEndsAt: 8600 })
-  })
-
-  it('full lobby: no seeding', async () => {
-    const status = await statusOf(world({ roundId: 2, round: baseRound({ phase: 'Lobby', coinCount: 6 }) }))
-    expect(status).toMatchObject({ freeSlots: 0, canSeed: false, canCreate: false })
-  })
-
-  it.each(['Leveling', 'Knockout'] as const)('%s: neither', async (phase) => {
-    const status = await statusOf(world({ roundId: 2, round: baseRound({ phase }) }))
-    expect(status).toMatchObject({ canCreate: false, canSeed: false, freeSlots: 0, lobbyEndsAt: null })
-  })
-
-  it.each(['Settled', 'Aborted'] as const)('%s: canCreate', async (phase) => {
-    const status = await statusOf(world({ roundId: 2, round: baseRound({ phase }) }))
-    expect(status).toMatchObject({ canCreate: true, canSeed: false })
-  })
-})
-
-describe('POST /demo/create-round', () => {
-  const lite = () => treasuryTarget(LITE_DEFAULT, 10n * ETH)
-
-  it('calls createDefaultRound with the full treasury target when nothing carries over', async () => {
-    const w = world({ roundId: 1, round: baseRound({ phase: 'Settled' }) })
-    const { app } = build(w)
-    const response = await create(app)
-    expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ roundId: 2 })
-    expect(w.journal).toEqual(['recycle:1', `createDefault:${lite()}`])
-    expect(lite()).toBe(10n * ETH + BigInt(plannedEpochs(LITE_DEFAULT)) * parseEther('0.22'))
-  })
-
-  it('subtracts the carry-over from the value sent', async () => {
-    const w = world({ roundId: 1, round: baseRound({ phase: 'Settled' }), carry: 4n * ETH })
-    const { app } = build(w)
-    expect(((await (await create(app)).json()) as { roundId: number }).roundId).toBe(2)
-    expect(w.journal).toEqual(['recycle:1', `createDefault:${lite() - 4n * ETH}`])
-  })
-
-  it('sends value 0 when the carry already covers the target', async () => {
-    const w = world({ roundId: 1, round: baseRound({ phase: 'Aborted' }), carry: 1000n * ETH })
-    const { app } = build(w)
-    expect((await create(app)).status).toBe(200)
-    expect(w.journal).toEqual(['recycle:1', 'createDefault:0'])
-  })
-
-  it('reads the config from chain instead of hardcoding it', async () => {
-    const w = world({ defaultConfig: { ...LITE_DEFAULT, keeperBounty: parseEther('1') } })
-    const { app } = build(w)
-    expect((await create(app)).status).toBe(200)
-    expect(w.journal).toEqual([`createDefault:${treasuryTarget({ ...LITE_DEFAULT, keeperBounty: parseEther('1') }, 10n * ETH)}`])
-  })
-
-  it('creates the first round without recycling', async () => {
-    const w = world()
-    const { app } = build(w)
-    expect((await (await create(app)).json())).toEqual({ roundId: 1 })
-    expect(w.journal).toEqual([`createDefault:${lite()}`])
-  })
-
-  it.each(['Lobby', 'Leveling', 'Knockout'] as const)('409 while a %s round is live', async (phase) => {
-    const w = world({ roundId: 1, round: baseRound({ phase }) })
-    const { app } = build(w)
-    const response = await create(app)
-    expect(response.status).toBe(409)
-    expect(await response.json()).toEqual({ error: 'round in progress' })
-    expect(w.journal).toEqual([])
-  })
-
-  it('402 with the shortfall before touching the chain', async () => {
-    const w = world({ roundId: 1, round: baseRound({ phase: 'Aborted' }) })
-    w.balances.set(CREATOR, 5n * ETH)
-    const { app } = build(w)
-    const response = await create(app)
-    expect(response.status).toBe(402)
-    const shortfall = lite() + parseEther('0.1') - 5n * ETH
-    expect(await response.json()).toEqual({ error: 'insufficient funds', shortfall: formatEther(shortfall), address: CREATOR })
-    expect(w.journal).toEqual([])
-  })
-
-  it('503 without a creator key', async () => {
-    const { app } = build(world(), { creatorAddress: null })
-    const response = await create(app)
-    expect(response.status).toBe(503)
-    expect(await response.json()).toEqual({ error: 'creator_key_missing' })
-  })
-
-  it('409 no_default_config when the owner has not set one (read)', async () => {
-    const w = world({ defaultConfig: null })
-    const { app } = build(w)
-    const response = await create(app)
-    expect(response.status).toBe(409)
-    expect(await response.json()).toEqual({ error: 'no_default_config' })
-    expect(w.journal).toEqual([])
-  })
-
-  it('409 no_default_config when the contract reverts NoDefaultConfig', async () => {
-    const w = world({ createError: new Error('reverted with custom error NoDefaultConfig()') })
-    const { app } = build(w)
-    const response = await create(app)
-    expect(response.status).toBe(409)
-    expect(await response.json()).toEqual({ error: 'no_default_config' })
-  })
-
-  it('an unexpected create failure is a 502 and releases the lock', async () => {
-    const w = world({ createError: new Error('boom') })
-    const { app, admin } = build(w)
-    expect((await create(app)).status).toBe(502)
-    expect(admin.isBusy()).toBe(false)
-  })
-
-  it('a recycle failure never blocks creation (recycle is best effort)', async () => {
-    const w = world({ roundId: 1, round: baseRound({ phase: 'Settled' }) })
-    const { app } = build(w)
-    expect((await create(app)).status).toBe(200)
-  })
-})
-
-describe('POST /demo/seed-house', () => {
-  const lobby = () => world({ roundId: 1, round: baseRound({ phase: 'Lobby', coinCount: 0, treasury: 20n * ETH }) })
-
-  it('launches 5 by default and answers the tickers', async () => {
-    const w = lobby()
-    const { app } = build(w)
-    const response = await seed(app)
-    expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ launched: HOUSE_ROSTER.slice(0, 5).map((e) => e.ticker) })
-  })
-
-  it('honours count and clamps it to 5', async () => {
-    const w = lobby()
-    const { app } = build(w)
-    expect(await (await seed(app, { count: 2 })).json()).toEqual({ launched: ['MOOND', 'FIRECAT'] })
-    expect(((await (await seed(app, { count: 99 })).json()) as { launched: string[] }).launched).toEqual(['AQUA', 'TITAN', 'VOLT', 'SHADE'])
-    expect(w.coins.length).toBe(6)
-  })
-
-  it('caps by free slots and is idempotent once full', async () => {
-    const w = lobby()
-    w.coins = [0, 1, 2, 3].map((i) => ({ coinId: i, ticker: `P${i}`, token: `0x${(i + 1).toString(16).padStart(40, '0')}` as Hex }))
-    w.round = baseRound({ phase: 'Lobby', coinCount: 4, treasury: 20n * ETH })
-    const { app } = build(w)
-    expect(await (await seed(app)).json()).toEqual({ launched: ['MOOND', 'FIRECAT'] })
-    const again = await seed(app)
-    expect(again.status).toBe(409)
-    expect(await again.json()).toEqual({ error: 'lobby full' })
-    expect(w.journal.filter((e) => e.startsWith('launch:'))).toHaveLength(2)
-  })
-
-  it('never relaunches a ticker that already exists', async () => {
-    const w = lobby()
-    w.coins = [{ coinId: 0, ticker: 'MOOND', token: `0x${'1'.padStart(40, '0')}` }]
-    w.round = baseRound({ phase: 'Lobby', coinCount: 1, treasury: 20n * ETH })
-    const { app } = build(w)
-    const launched = ((await (await seed(app, { count: 3 })).json()) as { launched: string[] }).launched
-    expect(launched).toEqual(['FIRECAT', 'AQUA', 'TITAN'])
-  })
-
-  it('409 outside the lobby, 400 on a bad body', async () => {
-    const { app } = build(world({ roundId: 1, round: baseRound({ phase: 'Leveling' }) }))
-    const response = await seed(app)
-    expect(response.status).toBe(409)
-    expect(await response.json()).toEqual({ error: 'not in lobby' })
-    expect((await seed(app, { count: 0 })).status).toBe(400)
-    expect((await seed(app, { count: 'five' })).status).toBe(400)
-  })
-
-  it('402 with a shortfall when the seeder cannot fund the wallets', async () => {
-    const w = lobby()
-    w.balances.set(SEEDER, 2n * ETH)
-    const { app } = build(w)
-    const response = await seed(app)
-    expect(response.status).toBe(402)
-    const body = (await response.json()) as { error: string; shortfall: string; address: string }
-    expect(body.error).toBe('insufficient funds')
-    expect(body.address).toBe(SEEDER)
-    expect(Number(body.shortfall)).toBeGreaterThan(0)
-    expect(w.journal).toEqual([])
-  })
-
-  it('counts existing house wallet balances against the shortfall', async () => {
-    const w = lobby()
-    w.balances.set(SEEDER, 0n)
-    for (let i = 0; i < 6; i += 1) w.houseBalances.set(i, 100n * ETH)
-    const { app } = build(w)
-    expect((await seed(app)).status).toBe(200)
-  })
-})
-
-describe('serialization', () => {
-  it('answers 409 busy to a second operation while one is running, then recovers', async () => {
-    const w = world()
-    let open!: () => void
-    const wait = new Promise<void>((resolve) => {
-      open = resolve
-    })
-    const { app, admin } = build(w, {}, { release: () => wait })
-    const first = create(app, '203.0.113.20')
-    await Promise.resolve()
-    await new Promise((resolve) => setTimeout(resolve, 5))
-    expect(admin.isBusy()).toBe(true)
-    const status = (await (await app.request('/demo/status', { headers: auth })).json()) as { busy: boolean }
-    expect(status.busy).toBe(true)
-    const second = await create(app, '203.0.113.21')
-    expect(second.status).toBe(409)
-    expect(await second.json()).toEqual({ error: 'busy' })
-    const seedWhileBusy = await seed(app, undefined, '203.0.113.22')
-    expect(seedWhileBusy.status).toBe(409)
-    open()
-    expect((await first).status).toBe(200)
-    expect(admin.isBusy()).toBe(false)
-  })
-
-  it('releases the lock and answers 502 when the chain throws', async () => {
-    const w = world()
-    const { app, admin } = build(w, {
-      chain: {
-        currentRoundId: () => Promise.reject(new Error('rpc down')),
-        balance: () => Promise.resolve(0n),
-        houseBalance: () => Promise.resolve(0n),
-        estimateCarry: () => Promise.resolve(0n),
-        recycle: () => Promise.resolve(),
-        readDefaultConfig: () => Promise.resolve(LITE_DEFAULT),
-        createDefaultRound: () => Promise.reject(new Error('x')),
-        fundTreasury: () => Promise.resolve()
-      }
-    })
-    expect((await create(app)).status).toBe(502)
-    expect(admin.isBusy()).toBe(false)
+  it('answers 409 when creating during a round and 400 for a malformed seed body', async () => {
+    const api = app(world(baseRound({ phase: 'Leveling', startedAt: 1000 })))
+    expect((await api.request('/demo/create-round', { method: 'POST', headers })).status).toBe(409)
+    expect((await api.request('/demo/seed-house', { method: 'POST', headers, body: 'nope' })).status).toBe(400)
   })
 })

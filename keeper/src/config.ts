@@ -25,13 +25,14 @@ const envSchema = z.object({
   CLASH_MAX_PER_RESOLVE: wholeNumber.optional(),
   DEMO_FAST: z.string().optional(),
   DEMO_ADMIN_TOKEN: z.string().min(1).optional(),
-  LOBBY_SECONDS: wholeNumber.optional(),
+  HOUSE_GAS_BUFFER: decimalAmount.optional(),
   ROUND_ID: wholeNumber.optional()
 })
 
 export interface Deployment {
   arena?: string
   deployHeight?: number
+  gas?: Record<string, bigint>
 }
 
 export interface KeeperConfig {
@@ -54,7 +55,8 @@ export interface KeeperConfig {
   clashMaxPerResolve: number
   demoFast: boolean
   demoAdminToken: string | null
-  lobbySeconds: number
+  houseGasBuffer: bigint
+  gas: Record<string, bigint>
 }
 
 export class ConfigError extends Error {
@@ -112,8 +114,6 @@ export function loadConfig(
   }
   const clash = v.CLASH_MAX_PER_RESOLVE === undefined ? 255 : Number(v.CLASH_MAX_PER_RESOLVE)
   if (clash < 1 || clash > 255) problems.push('CLASH_MAX_PER_RESOLVE: must be between 1 and 255')
-  const lobbySeconds = v.LOBBY_SECONDS === undefined ? 10800 : Number(v.LOBBY_SECONDS)
-  if (lobbySeconds < 1 || lobbySeconds > 4_294_967_295) problems.push('LOBBY_SECONDS: must be between 1 and 4294967295')
   if (problems.length > 0) throw new ConfigError(problems)
   const asKey = (value: string | undefined): KeyPairString | null => (value === undefined ? null : (value as KeyPairString))
   const rpcUrls =
@@ -140,7 +140,8 @@ export function loadConfig(
     clashMaxPerResolve: clash,
     demoFast: truthy(v.DEMO_FAST),
     demoAdminToken: v.DEMO_ADMIN_TOKEN ?? null,
-    lobbySeconds
+    houseGasBuffer: nearToYoctoAmount(v.HOUSE_GAS_BUFFER ?? '0.1'),
+    gas: deployment?.gas ?? {}
   }
 }
 

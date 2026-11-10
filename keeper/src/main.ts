@@ -2,10 +2,20 @@ import { serve } from '@hono/node-server'
 import { createArenaStore } from '@animal/shared'
 import type { ChainFeed, FeedStatus } from '@animal/shared'
 import { createApi } from './api'
+import type { DripHandler } from './api'
 import type { HealthBody } from './api'
+import { createDemoAdmin } from './demo'
+import { createNearDemoChain } from './demoChain'
+import { createDripService } from './drip'
 import { resolveNearFeedFactory } from './feed'
 import { followRounds, createSwitchableRelay } from './follow'
+import { createHelperClient } from './helper'
+import { createNearHouseChain } from './houseChain'
+import { houseAccountId, houseSecretKey } from './houseKeys'
 import { createKeeperLoop } from './loop'
+import { createNearAccounts } from './nearAccounts'
+import type { NearTransport } from './nearPort'
+import { createNearTransport } from './nearTransport'
 import { bootRuntime } from './runtime'
 
 const STALE_AFTER_SECONDS = 5
@@ -65,7 +75,67 @@ async function main(): Promise<void> {
     }
   }
 
-  const app = createApi({ health, drip: null, allowedOrigin: config.allowedOrigin, relay })
+  let drip: DripHandler | null = null
+  if (config.dripKey !== null) {
+    drip = createDripService({
+      accounts: createNearAccounts({ rpcUrls: config.rpcUrls, accountId: config.dripAccountId, privateKey: config.dripKey }),
+      helper: createHelperClient({ url: config.helperUrl }),
+      amount: config.dripAmount
+    })
+    log.info({ dripAccount: config.dripAccountId, amountYocto: config.dripAmount.toString() }, 'drip enabled')
+  }
+
+  const demoLog = (message: string, fields?: Record<string, unknown>): void => log.info({ ...fields }, message)
+  const houseSeed = config.houseSeed
+  let demo: { token: string; admin: ReturnType<typeof createDemoAdmin> } | null = null
+  if (config.demoAdminToken !== null && config.seederKey !== null) {
+    const seederKey = config.seederKey
+    const seederAccounts = createNearAccounts({ rpcUrls: config.rpcUrls, accountId: config.seederAccountId, privateKey: seederKey })
+    const seederTransport = createNearTransport({
+      rpcUrls: config.rpcUrls,
+      arena: config.arena,
+      accountId: config.seederAccountId,
+      privateKey: seederKey
+    })
+    const houseTransports = new Map<number, NearTransport>()
+    const transportFor = (walletIndex: number): NearTransport => {
+      if (houseSeed === null) throw new Error('HOUSE_SEED is required')
+      const cached = houseTransports.get(walletIndex)
+      if (cached !== undefined) return cached
+      const created = createNearTransport({
+        rpcUrls: config.rpcUrls,
+        arena: config.arena,
+        accountId: houseAccountId(walletIndex, config.seederAccountId),
+        privateKey: houseSecretKey(houseSeed, walletIndex)
+      })
+      houseTransports.set(walletIndex, created)
+      return created
+    }
+    demo = {
+      token: config.demoAdminToken,
+      admin: createDemoAdmin({
+        port,
+        chain: createNearDemoChain({ transport: seederTransport, accounts: seederAccounts }),
+        houseChainFor: (roundId) =>
+          houseSeed === null
+            ? null
+            : createNearHouseChain({
+                roundId,
+                arenaView: (method, args) => seederTransport.view(method, args),
+                seederAccounts,
+                houseSeed,
+                transportFor
+              }),
+        creatorAccountId: config.seederAccountId,
+        seederAccountId: config.seederAccountId,
+        houseGasBuffer: config.houseGasBuffer,
+        log: demoLog
+      })
+    }
+  }
+  log.info({ demoAdmin: demo !== null, houseSeed: houseSeed !== null }, 'demo admin api')
+
+  const app = createApi({ health, drip, allowedOrigin: config.allowedOrigin, relay, demo })
   const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
     log.info({ port: info.port }, 'api listening')
   })
@@ -96,7 +166,7 @@ async function main(): Promise<void> {
         maxClashes: config.clashMaxPerResolve,
         log,
         sleep,
-        pollMs: config.demoFast ? 300 : 1000
+        pollMs: config.demoFast ? 600 : 1000
       }).run(shouldStop),
     sleep,
     pollMs: config.demoFast ? 500 : 2000,

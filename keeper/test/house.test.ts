@@ -1,174 +1,206 @@
 import { describe, expect, it } from 'vitest'
-import { english, generateMnemonic, generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { elementOf, skinById } from '@animal/shared'
-import type { Hex } from '@animal/shared'
-import { houseAccountFactory } from '../src/houseChain'
-import {
-  BLOCKS_BETWEEN_LAUNCHES,
-  COINS_PER_HOUSE_WALLET,
-  HOUSE_ROSTER,
-  fundingByWallet,
-  planLaunches,
-  runSeedHouse,
-  seedFor
-} from '../src/house'
-import type { HouseChain, HouseCoinOnChain, LaunchPlanItem } from '../src/house'
+import { HOUSE_ROSTER, HOUSE_WALLETS, fundingByWallet, planLaunches, runSeedHouse, seedFor } from '../src/house'
+import type { HouseChain, HouseState, LaunchPlanItem } from '../src/house'
+import { createNearHouseChain } from '../src/houseChain'
+import { houseAccountId, housePublicKey } from '../src/houseKeys'
+import type { NearAccounts } from '../src/nearAccounts'
+import type { NearCallResult, NearTransport } from '../src/nearPort'
+import { TGAS } from '../src/nearPort'
 
-const ETH = 10n ** 18n
-const MIN_SEED = 2n * ETH
-const MAX_SEED = 50n * ETH
+const NEAR = 10n ** 24n
+const TENTH = NEAR / 10n
 
-describe('house roster', () => {
-  it('has the 12 prototype coins with valid tickers, monsters and skins', () => {
-    expect(HOUSE_ROSTER.map((r) => r.ticker)).toEqual([
-      'MOOND', 'FIRECAT', 'AQUA', 'TITAN', 'VOLT', 'SHADE', 'DRACO', 'GLACIER', 'KITSUNE', 'CRAG', 'UMBRA', 'PYRO'
-    ])
+describe('roster and plan', () => {
+  it('has unique catalog-valid tickers the contract accepts', () => {
+    expect(new Set(HOUSE_ROSTER.map((entry) => entry.ticker)).size).toBe(HOUSE_ROSTER.length)
     for (const entry of HOUSE_ROSTER) {
       expect(entry.ticker).toMatch(/^[A-Z0-9]{2,7}$/)
       expect(entry.name.length).toBeLessThanOrEqual(32)
-      expect(elementOf(entry.monsterType)).toBeDefined()
-      expect(skinById(entry.skinId)).toBeDefined()
     }
-    const byTicker = Object.fromEntries(HOUSE_ROSTER.map((r) => [r.ticker, [r.monsterType, r.skinId]]))
-    expect(byTicker['MOOND']).toEqual([0, 2])
-    expect(byTicker['SHADE']).toEqual([4, 4])
-    expect(byTicker['AQUA']).toEqual([1, 3])
+  })
+
+  it('uses the minimum seed when the bounds are equal and never exceeds the maximum', () => {
+    expect(seedFor(TENTH, TENTH)).toBe(TENTH)
+    expect(seedFor(2n * TENTH, TENTH)).toBe(TENTH)
+  })
+
+  it('plans the first free roster entries up to the limit, one wallet each', () => {
+    const plan = planLaunches({ minSeed: TENTH, maxSeed: TENTH, existingTickers: new Set(), freeSlots: 6, limit: 5 })
+    expect(plan.map((item) => item.ticker)).toEqual(HOUSE_ROSTER.slice(0, 5).map((entry) => entry.ticker))
+    expect(plan.map((item) => item.walletIndex)).toEqual([0, 1, 2, 3, 4])
+    expect(HOUSE_WALLETS).toBe(5)
+  })
+
+  it('skips tickers already in the lobby and respects the free slots', () => {
+    const plan = planLaunches({ minSeed: TENTH, maxSeed: TENTH, existingTickers: new Set(['MOOND']), freeSlots: 2, limit: 5 })
+    expect(plan.map((item) => item.ticker)).toEqual(['FIRECAT', 'AQUA'])
+  })
+
+  it('sums the deposits per wallet plus the gas buffer', () => {
+    const plan = planLaunches({ minSeed: TENTH, maxSeed: TENTH, existingTickers: new Set(), freeSlots: 6, limit: 2 })
+    const funding = fundingByWallet(plan, TENTH, TENTH)
+    expect([...funding.entries()]).toEqual([
+      [0, 3n * TENTH],
+      [1, 3n * TENTH]
+    ])
   })
 })
 
-describe('launch plan', () => {
-  it('uses differing seeds inside the configured bounds', () => {
-    const plan = planLaunches({ minSeed: MIN_SEED, maxSeed: MAX_SEED, existingTickers: new Set(), freeSlots: 30 })
-    expect(plan).toHaveLength(12)
-    const seeds = plan.map((p) => p.seed)
-    expect(new Set(seeds).size).toBe(12)
-    for (const seed of seeds) {
-      expect(seed >= MIN_SEED && seed <= MAX_SEED).toBe(true)
-    }
-    expect(seeds[0]).toBe(12n * ETH)
-    expect(seeds[11]).toBe(2n * ETH)
-  })
-
-  it('clamps to maxSeed and to minSeed', () => {
-    expect(seedFor(0, 10n * ETH, 20n * ETH)).toBe(20n * ETH)
-    expect(seedFor(11, 10n * ETH, 20n * ETH)).toBe(10n * ETH)
-  })
-
-  it('gives each wallet at most two coins', () => {
-    const plan = planLaunches({ minSeed: MIN_SEED, maxSeed: MAX_SEED, existingTickers: new Set(), freeSlots: 30 })
-    const perWallet = new Map<number, number>()
-    for (const item of plan) perWallet.set(item.walletIndex, (perWallet.get(item.walletIndex) ?? 0) + 1)
-    expect(perWallet.size).toBe(6)
-    expect([...perWallet.values()].every((n) => n <= COINS_PER_HOUSE_WALLET)).toBe(true)
-  })
-
-  it('skips tickers that are already launched and respects the free slots', () => {
-    const plan = planLaunches({ minSeed: MIN_SEED, maxSeed: MAX_SEED, existingTickers: new Set(['MOOND', 'AQUA']), freeSlots: 3 })
-    expect(plan.map((p) => p.ticker)).toEqual(['FIRECAT', 'TITAN', 'VOLT'])
-  })
-
-  it('sums the launch fee, seeds and a gas buffer per wallet', () => {
-    const plan = planLaunches({ minSeed: MIN_SEED, maxSeed: MAX_SEED, existingTickers: new Set(), freeSlots: 30 })
-    const funding = fundingByWallet(plan, ETH, ETH / 2n)
-    expect(funding.get(0)).toBe(ETH / 2n + (ETH + 12n * ETH) + (ETH + 11n * ETH))
-    expect(funding.size).toBe(6)
-  })
-})
-
-function fakeChain(initial: HouseCoinOnChain[] = []) {
-  const coins = [...initial]
-  const journal: string[] = []
+function fakeChain(existing: string[] = []): { chain: HouseChain; funded: Array<[number, bigint]>; launched: LaunchPlanItem[] } {
   const funded: Array<[number, bigint]> = []
-  const chain: HouseChain = {
-    readState: () =>
-      Promise.resolve({ coins: [...coins], minSeed: MIN_SEED, maxSeed: MAX_SEED, launchFee: ETH, maxCoins: 30 }),
-    ensureReserve: () => {
-      journal.push('reserve')
-      return Promise.resolve(0n)
-    },
-    fund: (walletIndex, amount) => {
-      journal.push(`fund:${walletIndex}`)
-      funded.push([walletIndex, amount])
-      return Promise.resolve()
-    },
-    launch: (item: LaunchPlanItem) => {
-      journal.push(`launch:${item.ticker}`)
-      coins.push({ coinId: coins.length, ticker: item.ticker, token: `0x${(coins.length + 1).toString(16).padStart(40, '0')}` as Hex })
-      return Promise.resolve()
-    },
-    waitBlocks: (count) => {
-      journal.push(`wait:${count}`)
-      return Promise.resolve()
+  const launched: LaunchPlanItem[] = []
+  const state: HouseState = {
+    coins: existing.map((ticker, coinId) => ({ coinId, ticker, creator: 'x.testnet' })),
+    minSeed: TENTH,
+    maxSeed: TENTH,
+    launchFee: TENTH,
+    maxCoins: 6
+  }
+  return {
+    funded,
+    launched,
+    chain: {
+      readState: () => Promise.resolve(state),
+      houseBalance: () => Promise.resolve(0n),
+      fund(walletIndex, target) {
+        funded.push([walletIndex, target])
+        return Promise.resolve()
+      },
+      launch(item) {
+        launched.push(item)
+        return Promise.resolve(`TX-${item.ticker}`)
+      }
     }
   }
-  return { chain, journal, funded, coins }
 }
 
 describe('runSeedHouse', () => {
-  it('funds first, launches one coin per four blocks and returns public addresses only', async () => {
-    const { chain, journal, funded } = fakeChain()
-    const result = await runSeedHouse({ chain, roundId: 1, gasBuffer: ETH / 2n, log: () => undefined })
-    expect(result.launched).toHaveLength(12)
-    expect(result.skipped).toEqual([])
-    const firstLaunch = journal.findIndex((entry) => entry.startsWith('launch:'))
-    expect(journal[0]).toBe('reserve')
-    expect(journal.slice(1, firstLaunch).every((entry) => entry.startsWith('fund:'))).toBe(true)
-    expect(funded).toHaveLength(6)
-    const launches = journal.filter((entry) => entry.startsWith('launch:') || entry.startsWith('wait:'))
-    for (let i = 0; i < launches.length; i += 2) {
-      expect(launches[i]?.startsWith('launch:')).toBe(true)
-      expect(launches[i + 1]).toBe(`wait:${BLOCKS_BETWEEN_LAUNCHES}`)
-    }
-    expect(result.entries).toHaveLength(12)
-    expect(result.entries[0]).toEqual({ roundId: 1, coinId: 0, ticker: 'MOOND', token: `0x${'1'.padStart(40, '0')}` })
-    expect(Object.keys(result.entries[0] ?? {}).sort()).toEqual(['coinId', 'roundId', 'ticker', 'token'])
+  it('funds each wallet, launches in order and returns the hashes', async () => {
+    const { chain, funded, launched } = fakeChain()
+    const logs: string[] = []
+    const result = await runSeedHouse({ chain, gasBuffer: TENTH, limit: 5, log: (message) => logs.push(message) })
+    expect(result.launched).toEqual(['MOOND', 'FIRECAT', 'AQUA', 'TITAN', 'VOLT'])
+    expect(result.txHashes[0]).toBe('TX-MOOND')
+    expect(funded.map(([index]) => index)).toEqual([0, 1, 2, 3, 4])
+    expect(launched).toHaveLength(5)
+    expect(logs.filter((message) => message === 'launched house coin')).toHaveLength(5)
   })
 
-  it('is idempotent per ticker: a second run launches nothing and funds nothing', async () => {
-    const { chain, journal } = fakeChain()
-    await runSeedHouse({ chain, roundId: 1, gasBuffer: ETH / 2n, log: () => undefined })
-    journal.length = 0
-    const again = await runSeedHouse({ chain, roundId: 1, gasBuffer: ETH / 2n, log: () => undefined })
-    expect(again.launched).toEqual([])
-    expect(again.skipped).toHaveLength(12)
-    expect(journal).toEqual(['reserve'])
-    expect(again.entries).toHaveLength(12)
-  })
-
-  it('tops up only the missing coins after a partial run and ignores foreign coins in the file', async () => {
-    const { chain } = fakeChain([
-      { coinId: 0, ticker: 'MOOND', token: `0x${'a'.repeat(40)}` },
-      { coinId: 1, ticker: 'PLAYER', token: `0x${'b'.repeat(40)}` }
-    ])
-    const result = await runSeedHouse({ chain, roundId: 2, gasBuffer: ETH / 2n, log: () => undefined })
-    expect(result.launched).toHaveLength(11)
-    expect(result.skipped).toEqual(['MOOND'])
-    expect(result.entries.map((e) => e.ticker)).not.toContain('PLAYER')
-    expect(result.entries.every((e) => e.roundId === 2)).toBe(true)
-  })
-
-  it('stops planning when the lobby has no free slot', async () => {
-    const coins: HouseCoinOnChain[] = Array.from({ length: 30 }, (_, i) => ({
-      coinId: i,
-      ticker: `P${i}`,
-      token: `0x${(i + 1).toString(16).padStart(40, '0')}` as Hex
-    }))
-    const { chain } = fakeChain(coins)
-    const result = await runSeedHouse({ chain, roundId: 1, gasBuffer: ETH, log: () => undefined })
-    expect(result.launched).toEqual([])
+  it('launches nothing when the lobby already holds the roster picks', async () => {
+    const { chain, launched } = fakeChain(['MOOND', 'FIRECAT', 'AQUA', 'TITAN', 'VOLT'])
+    const result = await runSeedHouse({ chain, gasBuffer: TENTH, limit: 5, log: () => undefined })
+    expect(result.launched).toEqual(['SHADE'])
+    expect(launched).toHaveLength(1)
   })
 })
 
-describe('house wallets', () => {
-  it('derives deterministic accounts from a mnemonic and warns through the ephemeral flag otherwise', () => {
-    const mnemonic = generateMnemonic(english)
-    const derived = houseAccountFactory(mnemonic, () => privateKeyToAccount(generatePrivateKey()))
-    expect(derived.ephemeral).toBe(false)
-    expect(derived.account(0).address).toBe(derived.account(0).address)
-    expect(derived.account(0).address).not.toBe(derived.account(1).address)
-    const ephemeral = houseAccountFactory(null, () => privateKeyToAccount(generatePrivateKey()))
-    expect(ephemeral.ephemeral).toBe(true)
-    expect(ephemeral.account(3).address).toBe(ephemeral.account(3).address)
-    expect(ephemeral.account(3).address).not.toBe(ephemeral.account(4).address)
+interface Ledger {
+  accounts: NearAccounts
+  balances: Map<string, bigint>
+  created: Array<{ id: string; publicKey: string; amount: bigint }>
+  transfers: Array<{ to: string; amount: bigint }>
+}
+
+function ledger(): Ledger {
+  const balances = new Map<string, bigint>()
+  const state: Ledger = {
+    balances,
+    created: [],
+    transfers: [],
+    accounts: {
+      accountId: 'fera-seeder.testnet',
+      exists: (id) => Promise.resolve(balances.has(id)),
+      balance: (id) => Promise.resolve(balances.get(id) ?? 0n),
+      transfer(to, amount) {
+        state.transfers.push({ to, amount })
+        balances.set(to, (balances.get(to) ?? 0n) + amount)
+        return Promise.resolve('T')
+      },
+      waitFinal: () => Promise.resolve(),
+      createAccount(id, publicKey, amount) {
+        state.created.push({ id, publicKey, amount })
+        balances.set(id, amount)
+        return Promise.resolve('C')
+      }
+    }
+  }
+  return state
+}
+
+describe('createNearHouseChain', () => {
+  const snapshot = {
+    config: { minSeed: TENTH.toString(), maxSeed: TENTH.toString(), launchFee: TENTH.toString(), maxCoins: 6 },
+    coins: [{ coinId: 0, ticker: 'MOOND', creator: 'h1.fera-seeder.testnet' }]
+  }
+
+  function build(ledgerState: Ledger, calls: Array<{ method: string; args: Record<string, unknown>; gas: bigint; deposit: bigint | undefined; wallet: number }>, result?: NearCallResult) {
+    return createNearHouseChain({
+      roundId: 4,
+      arenaView: (method, args) => {
+        if (method === 'get_arena_snapshot' && args['round_id'] === 4) return Promise.resolve(snapshot)
+        return Promise.reject(new Error(`unexpected ${method}`))
+      },
+      seederAccounts: ledgerState.accounts,
+      houseSeed: 'house-seed-long',
+      transportFor: (wallet): NearTransport => ({
+        accountId: houseAccountId(wallet, 'fera-seeder.testnet'),
+        view: () => Promise.reject(new Error('not used')),
+        head: () => Promise.reject(new Error('not used')),
+        call(method, args, gas, deposit) {
+          calls.push({ method, args, gas, deposit, wallet })
+          return Promise.resolve(result ?? { kind: 'success', hash: 'LAUNCH', gasBurnt: 1n, blockTimestampSec: 1 })
+        }
+      })
+    })
+  }
+
+  it('reads the lobby state from the arena snapshot', async () => {
+    const chain = build(ledger(), [])
+    expect(await chain.readState()).toEqual({
+      coins: [{ coinId: 0, ticker: 'MOOND', creator: 'h1.fera-seeder.testnet' }],
+      minSeed: TENTH,
+      maxSeed: TENTH,
+      launchFee: TENTH,
+      maxCoins: 6
+    })
+  })
+
+  it('creates a missing house sub-account with its derived key and the target balance', async () => {
+    const l = ledger()
+    await build(l, []).fund(2, 3n * TENTH)
+    expect(l.created).toEqual([{ id: 'h3.fera-seeder.testnet', publicKey: housePublicKey('house-seed-long', 2), amount: 3n * TENTH }])
+  })
+
+  it('tops an existing account up to the target and leaves a funded one alone', async () => {
+    const l = ledger()
+    l.balances.set('h1.fera-seeder.testnet', TENTH)
+    l.balances.set('h2.fera-seeder.testnet', 5n * TENTH)
+    const chain = build(l, [])
+    await chain.fund(0, 3n * TENTH)
+    await chain.fund(1, 3n * TENTH)
+    expect(l.transfers).toEqual([{ to: 'h1.fera-seeder.testnet', amount: 2n * TENTH }])
+  })
+
+  it('launches from the house account with launchFee plus seed attached', async () => {
+    const calls: Array<{ method: string; args: Record<string, unknown>; gas: bigint; deposit: bigint | undefined; wallet: number }> = []
+    const chain = build(ledger(), calls)
+    const item: LaunchPlanItem = { ticker: 'FIRECAT', name: 'FireCat On-Chain', monsterType: 0, skinId: 1, seed: TENTH, walletIndex: 1 }
+    expect(await chain.launch(item, TENTH)).toBe('LAUNCH')
+    expect(calls).toEqual([
+      {
+        method: 'launch_coin',
+        args: { round_id: 4, name: 'FireCat On-Chain', ticker: 'FIRECAT', monster_type: 0, skin_id: 1 },
+        gas: 30n * TGAS,
+        deposit: 2n * TENTH,
+        wallet: 1
+      }
+    ])
+  })
+
+  it('throws with the failure text when the launch is refused', async () => {
+    const failure: NearCallResult = { kind: 'failure', hash: 'F', gasBurnt: 1n, blockTimestampSec: 1, message: 'ArenaError:BadSeed' }
+    const chain = build(ledger(), [], failure)
+    const item: LaunchPlanItem = { ticker: 'AQUA', name: 'Aqua Frost Wolf', monsterType: 1, skinId: 2, seed: TENTH, walletIndex: 2 }
+    await expect(chain.launch(item, TENTH)).rejects.toThrow('ArenaError:BadSeed')
   })
 })

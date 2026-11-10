@@ -1,6 +1,4 @@
 import { monsterByKey, skinByKey } from '@animal/shared'
-import type { HouseCoinEntry } from '@animal/shared'
-import type { Hex } from '@animal/shared'
 
 export interface RosterEntry {
   ticker: string
@@ -24,9 +22,8 @@ const RAW_ROSTER: ReadonlyArray<readonly [string, string, string, string]> = [
   ['PYRO', 'Pyro Scale', 'fire_dragon', 'default']
 ]
 
-const SEED_WEIGHTS_TENTHS: readonly number[] = [60, 55, 50, 45, 40, 35, 30, 25, 22, 20, 15, 10]
-export const COINS_PER_HOUSE_WALLET = 2
-export const BLOCKS_BETWEEN_LAUNCHES = 4
+export const HOUSE_WALLETS = 5
+export const MAX_SEED_COUNT = 5
 
 export const HOUSE_ROSTER: readonly RosterEntry[] = RAW_ROSTER.map(([ticker, name, monster, skin]) => {
   const monsterType = monsterByKey(monster)?.monsterType
@@ -49,25 +46,18 @@ export interface PlanInput {
   limit?: number
 }
 
-export function seedFor(index: number, minSeed: bigint, maxSeed: bigint): bigint {
-  const flat = process.env['HOUSE_FLAT_SEED'] === '1'
-  const weight = flat ? 10n : BigInt(SEED_WEIGHTS_TENTHS[index % SEED_WEIGHTS_TENTHS.length] ?? 10)
-  const raw = (minSeed * weight) / 10n
-  if (raw < minSeed) return minSeed
-  return raw > maxSeed ? maxSeed : raw
+export function seedFor(minSeed: bigint, maxSeed: bigint): bigint {
+  return minSeed > maxSeed ? maxSeed : minSeed
 }
 
 export function planLaunches(input: PlanInput): LaunchPlanItem[] {
   const roster = input.roster ?? HOUSE_ROSTER
+  const cap = Math.min(input.freeSlots, input.limit ?? Number.MAX_SAFE_INTEGER)
   const plan: LaunchPlanItem[] = []
   roster.forEach((entry, index) => {
     if (input.existingTickers.has(entry.ticker)) return
-    if (plan.length >= Math.min(input.freeSlots, input.limit ?? Number.MAX_SAFE_INTEGER)) return
-    plan.push({
-      ...entry,
-      seed: seedFor(index, input.minSeed, input.maxSeed),
-      walletIndex: Math.floor(index / COINS_PER_HOUSE_WALLET)
-    })
+    if (plan.length >= cap) return
+    plan.push({ ...entry, seed: seedFor(input.minSeed, input.maxSeed), walletIndex: index % HOUSE_WALLETS })
   })
   return plan
 }
@@ -84,32 +74,31 @@ export function fundingByWallet(plan: readonly LaunchPlanItem[], launchFee: bigi
 export interface HouseCoinOnChain {
   coinId: number
   ticker: string
-  token: Hex
+  creator: string
+}
+
+export interface HouseState {
+  coins: HouseCoinOnChain[]
+  minSeed: bigint
+  maxSeed: bigint
+  launchFee: bigint
+  maxCoins: number
 }
 
 export interface HouseChain {
-  readState(): Promise<{
-    coins: HouseCoinOnChain[]
-    minSeed: bigint
-    maxSeed: bigint
-    launchFee: bigint
-    maxCoins: number
-  }>
-  ensureReserve(): Promise<bigint>
-  fund(walletIndex: number, amount: bigint): Promise<void>
-  launch(item: LaunchPlanItem, launchFee: bigint): Promise<void>
-  waitBlocks(count: number): Promise<void>
+  readState(): Promise<HouseState>
+  houseBalance(walletIndex: number): Promise<bigint>
+  fund(walletIndex: number, target: bigint): Promise<void>
+  launch(item: LaunchPlanItem, launchFee: bigint): Promise<string>
 }
 
 export interface SeedHouseResult {
   launched: string[]
-  skipped: string[]
-  entries: HouseCoinEntry[]
+  txHashes: string[]
 }
 
 export interface SeedHouseOptions {
   chain: HouseChain
-  roundId: number
   gasBuffer: bigint
   roster?: readonly RosterEntry[]
   limit?: number
@@ -117,36 +106,26 @@ export interface SeedHouseOptions {
 }
 
 export async function runSeedHouse(options: SeedHouseOptions): Promise<SeedHouseResult> {
-  const roster = options.roster ?? HOUSE_ROSTER
-  const topUp = await options.chain.ensureReserve()
-  if (topUp > 0n) options.log('funded the reserve floor through fundTreasury', { amount: topUp.toString() })
   const before = await options.chain.readState()
-  const existing = new Set(before.coins.map((coin) => coin.ticker))
   const plan = planLaunches({
-    roster,
+    ...(options.roster === undefined ? {} : { roster: options.roster }),
     minSeed: before.minSeed,
     maxSeed: before.maxSeed,
-    existingTickers: existing,
+    existingTickers: new Set(before.coins.map((coin) => coin.ticker)),
     freeSlots: Math.max(0, before.maxCoins - before.coins.length),
     ...(options.limit === undefined ? {} : { limit: options.limit })
   })
-  const skipped = roster.filter((entry) => existing.has(entry.ticker)).map((entry) => entry.ticker)
-  const funding = fundingByWallet(plan, before.launchFee, options.gasBuffer)
-  for (const [walletIndex, amount] of funding) {
-    options.log('funding house wallet', { walletIndex, amount: amount.toString() })
-    await options.chain.fund(walletIndex, amount)
+  for (const [walletIndex, target] of fundingByWallet(plan, before.launchFee, options.gasBuffer)) {
+    await options.chain.fund(walletIndex, target)
+    options.log('house wallet ready', { walletIndex, target: target.toString() })
   }
   const launched: string[] = []
+  const txHashes: string[] = []
   for (const item of plan) {
-    await options.chain.launch(item, before.launchFee)
+    const txHash = await options.chain.launch(item, before.launchFee)
     launched.push(item.ticker)
-    options.log('launched house coin', { ticker: item.ticker, walletIndex: item.walletIndex, seed: item.seed.toString() })
-    await options.chain.waitBlocks(BLOCKS_BETWEEN_LAUNCHES)
+    txHashes.push(txHash)
+    options.log('launched house coin', { ticker: item.ticker, walletIndex: item.walletIndex, seed: item.seed.toString(), txHash })
   }
-  const after = await options.chain.readState()
-  const wanted = new Set(roster.map((entry) => entry.ticker))
-  const entries: HouseCoinEntry[] = after.coins
-    .filter((coin) => wanted.has(coin.ticker))
-    .map((coin) => ({ roundId: options.roundId, coinId: coin.coinId, ticker: coin.ticker, token: coin.token }))
-  return { launched, skipped, entries }
+  return { launched, txHashes }
 }

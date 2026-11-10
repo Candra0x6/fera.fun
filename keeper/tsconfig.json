@@ -15,17 +15,9 @@
   "exclude": [
     "src/viemPort.ts",
     "src/clients.ts",
-    "src/demo.ts",
-    "src/demoChain.ts",
-    "src/demoRoutes.ts",
-    "src/house.ts",
-    "src/houseChain.ts",
-    "src/drip.ts",
     "scripts/deliver-mock-seed.ts",
     "scripts/force-start.ts",
     "scripts/seed-house.ts",
-    "test/viemPort.test.ts",
-    "test/demo.test.ts",
-    "test/house.test.ts"
+    "test/viemPort.test.ts"
   ]
 }

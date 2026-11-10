@@ -35,6 +35,8 @@ export interface TickOutcome {
 
 export type LoopResult = 'settled' | 'aborted' | 'stopped'
 
+const UNEXPECTED_SKIPS: ReadonlySet<string> = new Set(['Insolvent', 'Overflow', 'InsufficientBalance', 'PayFailed', 'BadConfig'])
+
 export function knockoutEpochs(coins: number, clashesPerEpoch: number): number {
   let left = coins
   let epochs = 0
@@ -60,7 +62,9 @@ export function createKeeperLoop(options: LoopOptions) {
 
   async function submit(call: KeeperCall, round: RoundState): Promise<SendResult> {
     const result = await port.send(call)
-    if (result.kind === 'skipped') {
+    if (result.kind === 'skipped' && UNEXPECTED_SKIPS.has(result.reason)) {
+      log.warn({ roundId, epoch: round.epoch, fn: call.fn, reason: result.reason }, 'call refused for a reason that should not happen')
+    } else if (result.kind === 'skipped') {
       log.debug({ roundId, epoch: round.epoch, fn: call.fn, reason: result.reason }, 'call skipped, a state guard refused it')
     } else if (result.status === 'reverted') {
       log.warn(

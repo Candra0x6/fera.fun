@@ -4,7 +4,7 @@ import { readDeployment } from './deployment'
 import { createLogger } from './logger'
 import type { KeeperLogger } from './logger'
 import { createNearArenaPort } from './nearPort'
-import type { NearTransport } from './nearPort'
+import type { GasTable, NearTransport } from './nearPort'
 import { createNearTransport } from './nearTransport'
 import type { ArenaPort } from './port'
 
@@ -13,6 +13,16 @@ export interface Runtime {
   log: KeeperLogger
   keeperTransport: NearTransport
   port: ArenaPort
+}
+
+export function keeperGas(gas: Readonly<Record<string, bigint>>): Partial<GasTable> {
+  const mapped: Partial<Record<keyof GasTable, bigint | undefined>> = {
+    startRound: gas['start_round'],
+    lockEpoch: gas['lock_epoch'],
+    resolveEpoch: gas['resolve_epoch'],
+    abortRound: gas['abort_round']
+  }
+  return Object.fromEntries(Object.entries(mapped).filter(([, value]) => value !== undefined))
 }
 
 export function bootRuntime(env: Readonly<Record<string, string | undefined>>, required: readonly Requirement[]): Runtime {
@@ -27,5 +37,5 @@ export function bootRuntime(env: Readonly<Record<string, string | undefined>>, r
     accountId: config.keeperAccountId,
     privateKey: config.keeperKey
   })
-  return { config, log, keeperTransport, port: createNearArenaPort({ transport: keeperTransport }) }
+  return { config, log, keeperTransport, port: createNearArenaPort({ transport: keeperTransport, gas: keeperGas(config.gas) }) }
 }

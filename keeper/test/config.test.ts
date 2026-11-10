@@ -22,7 +22,7 @@ describe('loadConfig', () => {
     expect(config.dripAccountId).toBe('fera-drip.testnet')
     expect(config.seederAccountId).toBe('fera-seeder.testnet')
     expect(config.helperUrl).toBe('https://helper.nearprotocol.com')
-    expect(config.lobbySeconds).toBe(10800)
+    expect(config.houseGasBuffer).toBe(10n ** 23n)
     expect(config.keeperKey).toBeNull()
     expect(config.roundId).toBeNull()
   })
@@ -43,7 +43,7 @@ describe('loadConfig', () => {
         DEMO_FAST: 'true',
         DRIP_AMOUNT_NEAR: '2.5',
         HELPER_URL: 'https://helper.example.test',
-        LOBBY_SECONDS: '90'
+        HOUSE_GAS_BUFFER: '0.25'
       },
       ['keeperKey']
     )
@@ -59,7 +59,7 @@ describe('loadConfig', () => {
       demoFast: true,
       dripAmount: 2_500_000_000_000_000_000_000_000n,
       helperUrl: 'https://helper.example.test',
-      lobbySeconds: 90
+      houseGasBuffer: 25n * 10n ** 22n
     })
   })
 

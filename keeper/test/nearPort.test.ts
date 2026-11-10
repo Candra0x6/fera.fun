@@ -217,6 +217,27 @@ describe('send', () => {
   })
 })
 
+describe('head cache', () => {
+  it('shares one head read between the height and the timestamp within the ttl and refreshes after it', async () => {
+    let reads = 0
+    let now = 0
+    const t = transport({
+      head: () => {
+        reads += 1
+        return { height: 100 + reads, timestampSec: 1000 + reads }
+      }
+    })
+    const port = createNearArenaPort({ transport: t.value, headTtlMs: 400, clock: () => now })
+    expect(await port.latestHeight()).toBe(101)
+    expect(await port.latestTimestamp()).toBe(1001)
+    expect(reads).toBe(1)
+    now = 401
+    expect(await port.latestHeight()).toBe(102)
+    await port.send({ fn: 'lockEpoch', roundId: 1 })
+    expect(await port.latestHeight()).toBe(103)
+  })
+})
+
 describe('arenaErrorName', () => {
   it('extracts the panic name or null', () => {
     expect(arenaErrorName('Smart contract panicked: ArenaError:SeedBlockNotReached')).toBe('SeedBlockNotReached')
@@ -252,7 +273,7 @@ describe('port driven by the keeper loop', () => {
     })
     const { records, logger } = recordingLogger()
     const loop = createKeeperLoop({
-      port: createNearArenaPort({ transport: t.value }),
+      port: createNearArenaPort({ transport: t.value, headTtlMs: 0 }),
       roundId: 1,
       maxClashes: 2,
       log: logger,

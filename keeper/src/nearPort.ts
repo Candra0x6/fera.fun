@@ -14,7 +14,7 @@ export interface NearTransport {
   readonly accountId: string
   view(method: string, args: Record<string, unknown>): Promise<unknown>
   head(): Promise<NearHead>
-  call(method: string, args: Record<string, unknown>, gas: bigint): Promise<NearCallResult>
+  call(method: string, args: Record<string, unknown>, gas: bigint, deposit?: bigint): Promise<NearCallResult>
 }
 
 export const TGAS = 1_000_000_000_000n
@@ -72,6 +72,8 @@ export function arenaErrorName(message: string): string | null {
 export interface NearPortOptions {
   transport: NearTransport
   gas?: Partial<GasTable>
+  headTtlMs?: number
+  clock?: () => number
 }
 
 const NO_ROUND: RoundState = {
@@ -91,7 +93,21 @@ const NO_ROUND: RoundState = {
 export function createNearArenaPort(options: NearPortOptions): ArenaPort {
   const { transport } = options
   const gas: GasTable = { ...DEFAULT_GAS, ...options.gas }
+  const headTtl = options.headTtlMs ?? 400
+  const clock = options.clock ?? (() => Date.now())
   let queue: Promise<unknown> = Promise.resolve()
+  let cached: { at: number; head: Promise<NearHead> } | null = null
+
+  function head(): Promise<NearHead> {
+    const at = clock()
+    if (cached !== null && at - cached.at < headTtl) return cached.head
+    const fresh = transport.head()
+    cached = { at, head: fresh }
+    fresh.catch(() => {
+      if (cached !== null && cached.head === fresh) cached = null
+    })
+    return fresh
+  }
 
   function argsOf(call: KeeperCall): Record<string, unknown> {
     if (call.fn === 'resolveEpoch') return { round_id: call.roundId, max_clashes: call.maxClashes }
@@ -101,6 +117,7 @@ export function createNearArenaPort(options: NearPortOptions): ArenaPort {
   async function execute(call: KeeperCall): Promise<SendResult> {
     const limit = gas[call.fn]
     const outcome = await transport.call(METHODS[call.fn], argsOf(call), limit)
+    cached = null
     if (outcome.kind === 'success') {
       return {
         kind: 'mined',
@@ -139,10 +156,10 @@ export function createNearArenaPort(options: NearPortOptions): ArenaPort {
       return configSchema.parse(await transport.view('get_config', {})) satisfies RoundParams
     },
     async latestTimestamp() {
-      return (await transport.head()).timestampSec
+      return (await head()).timestampSec
     },
     async latestHeight() {
-      return (await transport.head()).height
+      return (await head()).height
     },
     send(call) {
       const run = queue.then(() => execute(call))

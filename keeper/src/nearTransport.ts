@@ -1,6 +1,7 @@
 import { Account, FailoverRpcProvider, JsonRpcProvider, actions } from 'near-api-js'
 import type { KeyPairString } from 'near-api-js'
 import { z } from 'zod'
+import { createReadProviders, isDefinitiveReadError } from './rpcReads'
 import type { NearCallResult, NearHead, NearTransport } from './nearPort'
 
 export const DEFAULT_TESTNET_RPC_URLS: readonly string[] = [
@@ -63,10 +64,11 @@ const NANOS = 1_000_000_000
 export function createNearTransport(options: NearTransportOptions): NearTransport {
   const provider = new FailoverRpcProvider(options.rpcUrls.map((url) => new JsonRpcProvider({ url })))
   const account = new Account(options.accountId, provider, options.privateKey)
+  const reads = createReadProviders(options.rpcUrls)
 
   async function blockTimestamp(blockId: string, fallback: () => Promise<number>): Promise<number> {
     try {
-      const block = await provider.viewBlock({ blockId })
+      const block = await reads.read((p) => p.viewBlock({ blockId }), isDefinitiveReadError)
       return Math.floor(Number(BigInt(block.header.timestamp_nanosec) / BigInt(NANOS)))
     } catch {
       return fallback()
@@ -74,25 +76,23 @@ export function createNearTransport(options: NearTransportOptions): NearTranspor
   }
 
   async function head(): Promise<NearHead> {
-    const block = await provider.viewBlock({ finality: 'optimistic' })
+    const block = await reads.read((p) => p.viewBlock({ finality: 'optimistic' }), isDefinitiveReadError)
     return { height: block.header.height, timestampSec: Math.floor(Number(BigInt(block.header.timestamp_nanosec) / BigInt(NANOS))) }
   }
 
   return {
     accountId: options.accountId,
     async view(method, args) {
-      return provider.callFunction({
-        contractId: options.arena,
-        method,
-        args,
-        blockQuery: { finality: 'optimistic' }
-      })
+      return reads.read(
+        (p) => p.callFunction({ contractId: options.arena, method, args, blockQuery: { finality: 'optimistic' } }),
+        isDefinitiveReadError
+      )
     },
     head,
-    async call(method, args, gas): Promise<NearCallResult> {
+    async call(method, args, gas, deposit = 0n): Promise<NearCallResult> {
       const response = await account.signAndSendTransaction({
         receiverId: options.arena,
-        actions: [actions.functionCall(method, args, gas, 0n)],
+        actions: [actions.functionCall(method, args, gas, deposit)],
         waitUntil: 'EXECUTED_OPTIMISTIC',
         throwOnFailure: false
       })

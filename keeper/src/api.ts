@@ -2,6 +2,8 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { cors } from 'hono/cors'
 import { z } from 'zod'
+import type { DemoAdmin } from './demo'
+import { mountDemo } from './demoRoutes'
 import type { RelayHub } from './relay'
 import { mountRelay } from './relay'
 
@@ -30,6 +32,7 @@ export interface ApiDeps {
   drip: DripHandler | null
   allowedOrigin: string | null
   relay?: RelayHub | null
+  demo?: { admin: DemoAdmin; token: string; now?: () => number; writeMax?: number; readMax?: number } | null
   sleep?: (ms: number) => Promise<void>
   pingMs?: number
 }
@@ -88,6 +91,9 @@ export function createApi(deps: ApiDeps): Hono {
 
   if (deps.relay !== undefined && deps.relay !== null) {
     mountRelay(app, deps.relay, { sleep: deps.sleep, pingMs: deps.pingMs })
+  }
+  if (deps.demo !== undefined && deps.demo !== null) {
+    mountDemo(app, { ...deps.demo, clientIp })
   }
   return app
 }
