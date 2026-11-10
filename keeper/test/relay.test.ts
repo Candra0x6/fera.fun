@@ -133,7 +133,7 @@ function build() {
   const feed = new FakeFeed()
   const hub = createRelayHub(feed, 50)
   const api = createApi({
-    health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAddress: '0x0', roundId: null, round: null }),
+    health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAccount: 'k.testnet', roundId: null, round: null }),
     drip: null,
     allowedOrigin: null,
     relay: hub,

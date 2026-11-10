@@ -1,12 +1,12 @@
 import type { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
-import type { ArenaEventEnvelope, ArenaSnapshot, ChainFeed, CommitState, FeedStatus, Hex } from '@animal/shared'
+import type { ArenaEventEnvelope, ArenaSnapshot, BlockId, ChainFeed, CommitState, FeedStatus } from '@animal/shared'
 
 export type RelayMessage =
   | { kind: 'snapshot'; data: ArenaSnapshot }
   | { kind: 'event'; data: ArenaEventEnvelope }
-  | { kind: 'commit'; data: { blockId: Hex; blockNumber: number; commitState: CommitState } }
-  | { kind: 'retract'; data: { blockId: Hex } }
+  | { kind: 'commit'; data: { blockId: BlockId; blockNumber: number; commitState: CommitState } }
+  | { kind: 'retract'; data: { blockId: BlockId } }
   | { kind: 'status'; data: FeedStatus }
 
 export interface RelayHub {
@@ -23,7 +23,7 @@ export function createRelayHub(feed: ChainFeed, capacity = 400): RelayHub {
   let base: ArenaSnapshot | null = null
   let status: FeedStatus | null = null
   const ring: ArenaEventEnvelope[] = []
-  const retractLog: Array<{ blockId: Hex; afterId: string }> = []
+  const retractLog: Array<{ blockId: BlockId; afterId: string }> = []
   const listeners = new Set<(message: RelayMessage) => void>()
 
   function publish(message: RelayMessage): void {
@@ -82,7 +82,7 @@ export function createRelayHub(feed: ChainFeed, capacity = 400): RelayHub {
       }
       for (const entry of pending) out.push({ kind: 'event', data: entry })
       if (after !== null) {
-        const seen = new Set<Hex>()
+        const seen = new Set<BlockId>()
         for (const entry of ring) {
           if (entry.id <= after && RANK[entry.commitState] > RANK.Proposed && !seen.has(entry.blockId)) {
             seen.add(entry.blockId)

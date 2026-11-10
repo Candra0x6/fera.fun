@@ -1,34 +1,24 @@
 import { serve } from '@hono/node-server'
-import { MULTICALL3_ADDRESS, GET_LOGS_MAX_RANGE, createArenaStore, createChainFeed } from '@animal/shared'
+import { createArenaStore } from '@animal/shared'
 import type { ChainFeed, FeedStatus } from '@animal/shared'
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { createApi } from './api'
 import type { HealthBody } from './api'
-import { createViemDripSender, managedAccount } from './clients'
-import { createDemoAdmin } from './demo'
-import { createViemDemoChain } from './demoChain'
-import { createDripService } from './drip'
+import { resolveNearFeedFactory } from './feed'
 import { followRounds, createSwitchableRelay } from './follow'
-import { createViemHouseChain, houseAccountFactory } from './houseChain'
 import { createKeeperLoop } from './loop'
 import { bootRuntime } from './runtime'
-import { createViemArenaPort } from './viemPort'
 
 const STALE_AFTER_SECONDS = 5
 
 async function main(): Promise<void> {
-  const rt = await bootRuntime(process.env, ['keeperKey', 'arena'])
-  const { config, log, clients } = rt
-  if (config.keeperKey === null) throw new Error('KEEPER_PRIVATE_KEY is required')
-  const keeper = managedAccount(config.keeperKey)
-  const keeperWallet = clients.walletFor(keeper)
+  const { config, log, keeperTransport, port } = bootRuntime(process.env, ['keeperKey'])
+  const createFeed = resolveNearFeedFactory()
   log.info(
     {
-      keeperAddress: keeper.address,
+      keeperAccount: config.keeperAccountId,
       arena: config.arena,
-      roundId: rt.roundId,
-      chainId: rt.chainId,
-      dripEnabled: config.dripKey !== null,
+      network: config.network,
+      roundId: config.roundId,
       demoFast: config.demoFast
     },
     'keeper starting'
@@ -44,22 +34,12 @@ async function main(): Promise<void> {
     store = createArenaStore()
     status = { upstream: 'reconnecting', headBlock: 0, lagSeconds: 0 }
     const target = store
-    const next = createChainFeed(
-      {
-        wsUrls: config.wsUrls,
-        httpUrls: config.httpUrls,
-        arena: config.arena,
-        roundId,
-        deployBlock: config.deployBlock,
-        multicall3: MULTICALL3_ADDRESS,
-        getLogsMaxRange: GET_LOGS_MAX_RANGE
-      },
-      {
-        createWebSocket: (url) => new WebSocket(url),
-        fetch: (url, init) => fetch(url, init),
-        logger: (message, detail) => log.debug({ ...detail }, message)
-      }
-    )
+    const next = createFeed({
+      rpcUrls: config.rpcUrls,
+      arena: config.arena,
+      roundId,
+      pollMs: config.demoFast ? 500 : 1000
+    })
     next.onSnapshot((snapshot) => target.hydrate(snapshot))
     next.onEnvelope((envelope) => target.apply(envelope))
     next.onCommit((commit) => target.commit(commit))
@@ -73,16 +53,6 @@ async function main(): Promise<void> {
     void next.start()
   }
 
-  let drip = null
-  if (config.dripKey !== null) {
-    const dripAccount = managedAccount(config.dripKey)
-    drip = createDripService({
-      sender: createViemDripSender(clients.publicClient, clients.walletFor(dripAccount)),
-      amount: config.dripAmount
-    })
-    log.info({ dripAddress: dripAccount.address, amountWei: config.dripAmount.toString() }, 'drip enabled')
-  }
-
   const health = (): HealthBody => {
     const round = store.getState().persisted.round
     return {
@@ -90,50 +60,12 @@ async function main(): Promise<void> {
       ok: store.getState().hydrated && status.lagSeconds <= STALE_AFTER_SECONDS,
       headBlock: status.headBlock,
       lagSeconds: status.lagSeconds,
-      keeperAddress: keeper.address,
+      keeperAccount: keeperTransport.accountId,
       round: round === null ? null : { phase: round.phase, epoch: round.epoch, locked: round.locked }
     }
   }
-  const arenaPort = createViemArenaPort({ publicClient: clients.publicClient, walletClient: keeperWallet, arena: config.arena })
-  const seederAccount = config.seederKey === null ? null : managedAccount(config.seederKey)
-  const creatorAccount = config.demoCreateKey === 'keeper' ? keeper : (seederAccount ?? keeper)
-  const houses = houseAccountFactory(config.houseMnemonic, () => privateKeyToAccount(generatePrivateKey()))
-  const demoLog = (message: string, fields?: Record<string, unknown>): void => log.info({ ...fields }, message)
-  const demoChain = createViemDemoChain({
-    publicClient: clients.publicClient,
-    walletFor: clients.walletFor,
-    arena: config.arena,
-    creator: creatorAccount,
-    seeder: seederAccount,
-    houseAccount: houses.account,
-    log: demoLog
-  })
-  const demo =
-    config.demoAdminToken === null
-      ? null
-      : {
-          token: config.demoAdminToken,
-          admin: createDemoAdmin({
-            port: arenaPort,
-            chain: demoChain,
-            houseChainFor: (roundId) =>
-              createViemHouseChain({
-                publicClient: clients.publicClient,
-                walletFor: clients.walletFor,
-                arena: config.arena,
-                roundId,
-                seeder: seederAccount ?? keeper,
-                houseAccount: houses.account
-              }),
-            creatorAddress: creatorAccount.address,
-            seederAddress: seederAccount?.address ?? null,
-            lobbySeconds: config.lobbySeconds,
-            houseGasBuffer: config.houseGasBuffer,
-            log: demoLog
-          })
-        }
-  log.info({ demoAdmin: demo !== null, creatorAddress: creatorAccount.address }, 'demo admin api')
-  const app = createApi({ health, drip, allowedOrigin: config.allowedOrigin, relay, demo })
+
+  const app = createApi({ health, drip: null, allowedOrigin: config.allowedOrigin, relay })
   const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
     log.info({ port: info.port }, 'api listening')
   })
@@ -155,11 +87,11 @@ async function main(): Promise<void> {
   const sleep = (ms: number): Promise<void> => new Promise<void>((resolve) => void setTimeout(resolve, ms))
   await followRounds({
     fixedRoundId: config.roundId,
-    readCurrentRoundId: () => demoChain.currentRoundId(),
+    readCurrentRoundId: async () => Number(await keeperTransport.view('current_round_id', {})),
     bind: bindRound,
     runRound: (roundId, shouldStop) =>
       createKeeperLoop({
-        port: arenaPort,
+        port,
         roundId,
         maxClashes: config.clashMaxPerResolve,
         log,

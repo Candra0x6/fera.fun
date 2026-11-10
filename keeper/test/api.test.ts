@@ -1,82 +1,54 @@
 import { describe, expect, it } from 'vitest'
 import { createApi } from '../src/api'
-import type { HealthBody } from '../src/api'
-import { createDripService } from '../src/drip'
-import type { DripSender } from '../src/drip'
-import type { Hex } from '@animal/shared'
+import type { DripHandler, DripResponse, HealthBody } from '../src/api'
 
 const ORIGIN = 'https://arena.example.test'
-const ADDRESS = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
-const ETH = 10n ** 18n
+const KEY = 'ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp'
 
-function sender(balance = 100n * ETH) {
-  const sent: Array<{ to: Hex; amount: bigint }> = []
-  let running = 0
-  let peak = 0
-  const value: DripSender = {
-    address: '0x00000000000000000000000000000000000000dd',
-    balance: () => Promise.resolve(balance),
-    async send(to, amount) {
-      running += 1
-      peak = Math.max(peak, running)
-      await Promise.resolve()
-      sent.push({ to, amount })
-      running -= 1
-      return `0x${sent.length.toString(16).padStart(64, '0')}`
-    }
-  }
-  return { sender: value, sent, peak: () => peak }
+const HEALTH: HealthBody = {
+  ok: true,
+  headBlock: 123,
+  lagSeconds: 0.4,
+  keeperAccount: 'fera-keeper.testnet',
+  roundId: 1,
+  round: { phase: 'Leveling', epoch: 2, locked: false }
 }
 
-function app(options: { balance?: bigint; now?: () => number; ipMax?: number; drip?: boolean } = {}) {
-  const s = sender(options.balance)
-  const drip =
-    options.drip === false
-      ? null
-      : createDripService({
-          sender: s.sender,
-          amount: 5n * ETH,
-          now: options.now ?? (() => 1_000_000),
-          ipMaxPerWindow: options.ipMax ?? 10
-        })
-  const health: HealthBody = {
-    ok: true,
-    headBlock: 123,
-    lagSeconds: 0.4,
-    keeperAddress: '0x00000000000000000000000000000000000000ee',
-    roundId: 1,
-    round: { phase: 'Leveling', epoch: 2, locked: false }
+function handler(result: DripResponse): { handler: DripHandler; seen: Array<{ publicKey: string; ip: string }> } {
+  const seen: Array<{ publicKey: string; ip: string }> = []
+  return {
+    handler: {
+      drip(publicKey, ip) {
+        seen.push({ publicKey, ip })
+        return Promise.resolve(result)
+      }
+    },
+    seen
   }
-  const api = createApi({ health: () => health, drip, allowedOrigin: ORIGIN })
-  return { api, sent: s.sent, peak: s.peak, health }
 }
 
-function post(api: ReturnType<typeof app>['api'], address: string, ip = '203.0.113.5', origin: string = ORIGIN) {
+function app(drip: DripHandler | null) {
+  return createApi({ health: () => HEALTH, drip, allowedOrigin: ORIGIN })
+}
+
+function post(api: ReturnType<typeof app>, body: unknown, ip = '203.0.113.5', origin: string = ORIGIN) {
   return api.request('/drip', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-forwarded-for': ip, origin },
-    body: JSON.stringify({ address })
+    body: typeof body === 'string' ? body : JSON.stringify(body)
   })
 }
 
 describe('GET /healthz', () => {
   it('returns the documented body', async () => {
-    const { api } = app()
-    const response = await api.request('/healthz')
+    const response = await app(null).request('/healthz')
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({
-      ok: true,
-      headBlock: 123,
-      lagSeconds: 0.4,
-      keeperAddress: '0x00000000000000000000000000000000000000ee',
-      roundId: 1,
-      round: { phase: 'Leveling', epoch: 2, locked: false }
-    })
+    expect(await response.json()).toEqual(HEALTH)
   })
 
   it('answers 503 when the feed is unhealthy', async () => {
     const api = createApi({
-      health: () => ({ ok: false, headBlock: 0, lagSeconds: 12, keeperAddress: '0x0', roundId: null, round: null }),
+      health: () => ({ ok: false, headBlock: 0, lagSeconds: 12, keeperAccount: 'k.testnet', roundId: null, round: null }),
       drip: null,
       allowedOrigin: null
     })
@@ -85,94 +57,56 @@ describe('GET /healthz', () => {
 })
 
 describe('POST /drip', () => {
-  it('sends the configured amount and answers with the transaction hash', async () => {
-    const { api, sent } = app()
-    const response = await post(api, ADDRESS)
+  it('answers with the account, amount and path of the funding', async () => {
+    const ok: DripResponse = { ok: true, accountId: 'fera-0123456789.testnet', amount: '10000000000000000000000000', via: 'helper' }
+    const { handler: h, seen } = handler(ok)
+    const response = await post(app(h), { publicKey: KEY })
     expect(response.status).toBe(200)
-    const body = await response.json()
-    expect(body).toEqual({ txHash: `0x${'1'.padStart(64, '0')}`, amount: (5n * ETH).toString() })
-    expect(sent).toEqual([{ to: ADDRESS, amount: 5n * ETH }])
+    expect(await response.json()).toEqual(ok)
+    expect(seen).toEqual([{ publicKey: KEY, ip: '203.0.113.5' }])
   })
 
-  it('answers 400 for a bad address and for a bad body', async () => {
-    const { api } = app()
-    const bad = await post(api, '0x1234')
-    expect(bad.status).toBe(400)
-    expect(await bad.json()).toEqual({ error: 'bad_address' })
-    const notJson = await api.request('/drip', { method: 'POST', body: 'nope' })
-    expect(notJson.status).toBe(400)
-    const wrongShape = await api.request('/drip', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ wallet: ADDRESS })
-    })
-    expect(wrongShape.status).toBe(400)
+  it('includes the transaction hash on the transfer path', async () => {
+    const ok: DripResponse = { ok: true, accountId: 'a'.repeat(64), amount: '2000000000000000000000000', via: 'transfer', txHash: 'H1' }
+    const response = await post(app(handler(ok).handler), { publicKey: KEY })
+    expect(await response.json()).toEqual(ok)
   })
 
-  it('answers 429 with retryAfterSeconds for a repeated address', async () => {
-    let now = 1_000_000
-    const { api, sent } = app({ now: () => now })
-    expect((await post(api, ADDRESS)).status).toBe(200)
-    now += 60_000
-    const limited = await post(api, ADDRESS.toLowerCase(), '198.51.100.9')
-    expect(limited.status).toBe(429)
-    expect(await limited.json()).toEqual({ error: 'rate_limited', retryAfterSeconds: 3540 })
-    expect(limited.headers.get('retry-after')).toBe('3540')
-    expect(sent).toHaveLength(1)
-    now += 3_540_000
-    expect((await post(api, ADDRESS)).status).toBe(200)
-  })
-
-  it('answers 429 per IP across different addresses', async () => {
-    const { api, sent } = app({ ipMax: 2 })
-    expect((await post(api, `0x${'1'.repeat(40)}`, '192.0.2.1')).status).toBe(200)
-    expect((await post(api, `0x${'2'.repeat(40)}`, '192.0.2.1')).status).toBe(200)
-    const limited = await post(api, `0x${'3'.repeat(40)}`, '192.0.2.1')
-    expect(limited.status).toBe(429)
-    expect(await limited.json()).toEqual({ error: 'rate_limited', retryAfterSeconds: 3600 })
-    expect((await post(api, `0x${'3'.repeat(40)}`, '192.0.2.2')).status).toBe(200)
-    expect(sent).toHaveLength(3)
-  })
-
-  it('refuses below the balance floor and when the faucet is disabled', async () => {
-    const { api, sent } = app({ balance: 14n * ETH })
-    const empty = await post(api, ADDRESS)
-    expect(empty.status).toBe(503)
-    expect(await empty.json()).toEqual({ error: 'faucet_empty' })
-    expect(sent).toHaveLength(0)
-    const off = app({ drip: false })
-    expect((await post(off.api, ADDRESS)).status).toBe(503)
-  })
-
-  it('serialises concurrent drips so one account never has two sends in flight', async () => {
-    const { api, sent, peak } = app()
-    const responses = await Promise.all(
-      [1, 2, 3, 4].map((n) => post(api, `0x${String(n).repeat(40)}`, `192.0.2.${n}`))
-    )
-    expect(responses.map((r) => r.status)).toEqual([200, 200, 200, 200])
-    expect(sent).toHaveLength(4)
-    expect(peak()).toBe(1)
-  })
-
-  it('does not burn the rate limit when the transfer fails', async () => {
-    const failing: DripSender = {
-      address: '0x00000000000000000000000000000000000000dd',
-      balance: () => Promise.resolve(100n * ETH),
-      send: () => Promise.reject(new Error('rpc down'))
+  it('maps each error to its status and body', async () => {
+    const cases: Array<[DripResponse, number]> = [
+      [{ ok: false, error: 'bad_key' }, 400],
+      [{ ok: false, error: 'faucet_empty' }, 503],
+      [{ ok: false, error: 'send_failed' }, 502]
+    ]
+    for (const [result, status] of cases) {
+      const response = await post(app(handler(result).handler), { publicKey: KEY })
+      expect(response.status).toBe(status)
+      expect(await response.json()).toEqual(result)
     }
-    const api = createApi({
-      health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAddress: '0x0', roundId: null, round: null }),
-      drip: createDripService({ sender: failing, amount: ETH }),
-      allowedOrigin: ORIGIN
-    })
-    expect((await post(api, ADDRESS)).status).toBe(502)
-    expect((await post(api, ADDRESS)).status).toBe(502)
+    const limited: DripResponse = { ok: false, error: 'rate_limited', retryAfterSeconds: 3540 }
+    const response = await post(app(handler(limited).handler), { publicKey: KEY })
+    expect(response.status).toBe(429)
+    expect(response.headers.get('retry-after')).toBe('3540')
+    expect(await response.json()).toEqual(limited)
+  })
+
+  it('answers 400 for a body that is not JSON or has the wrong shape', async () => {
+    const { handler: h, seen } = handler({ ok: false, error: 'bad_key' })
+    const api = app(h)
+    expect((await post(api, 'nope')).status).toBe(400)
+    expect((await post(api, { address: KEY })).status).toBe(400)
+    expect(seen).toHaveLength(0)
+  })
+
+  it('answers 503 when the faucet is disabled', async () => {
+    const response = await post(app(null), { publicKey: KEY })
+    expect(response.status).toBe(503)
   })
 })
 
 describe('CORS', () => {
   it('allows only the configured origin', async () => {
-    const { api } = app()
+    const api = app(null)
     const allowed = await api.request('/healthz', { headers: { origin: ORIGIN } })
     expect(allowed.headers.get('access-control-allow-origin')).toBe(ORIGIN)
     const other = await api.request('/healthz', { headers: { origin: 'https://evil.example.test' } })
@@ -192,7 +126,7 @@ describe('CORS', () => {
 
   it('sets no cross-origin header when no origin is configured', async () => {
     const api = createApi({
-      health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAddress: '0x0', roundId: null, round: null }),
+      health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAccount: 'k.testnet', roundId: null, round: null }),
       drip: null,
       allowedOrigin: null
     })
