@@ -194,7 +194,7 @@ describe('demo routes', () => {
     return createApi({
       health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAccount: 'k.testnet', roundId: 1, round: null }),
       drip: null,
-      allowedOrigin: null,
+      allowedOrigins: [],
       demo: { admin: createDemoAdmin(w.deps), token: TOKEN }
     })
   }

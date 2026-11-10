@@ -30,7 +30,7 @@ export interface DripHandler {
 export interface ApiDeps {
   health(): HealthBody | Promise<HealthBody>
   drip: DripHandler | null
-  allowedOrigin: string | null
+  allowedOrigins: readonly string[]
   relay?: RelayHub | null
   demo?: { admin: DemoAdmin; token: string; now?: () => number; writeMax?: number; readMax?: number } | null
   sleep?: (ms: number) => Promise<void>
@@ -48,11 +48,11 @@ export function clientIp(c: Context): string {
 
 export function createApi(deps: ApiDeps): Hono {
   const app = new Hono()
-  const allowed = deps.allowedOrigin
+  const allowed = new Set(deps.allowedOrigins)
   app.use(
     '*',
     cors({
-      origin: (origin) => (allowed !== null && origin === allowed ? origin : null),
+      origin: (origin) => (allowed.has(origin) ? origin : null),
       allowMethods: ['GET', 'POST', 'OPTIONS'],
       allowHeaders: ['content-type', 'last-event-id', 'x-demo-token'],
       maxAge: 600

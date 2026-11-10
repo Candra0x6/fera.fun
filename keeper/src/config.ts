@@ -50,7 +50,7 @@ export interface KeeperConfig {
   houseSeed: string | null
   helperUrl: string
   dripAmount: bigint
-  allowedOrigin: string | null
+  allowedOrigins: string[]
   port: number
   clashMaxPerResolve: number
   demoFast: boolean
@@ -67,6 +67,16 @@ export class ConfigError extends Error {
     this.name = 'ConfigError'
     this.problems = problems
   }
+}
+
+export const LOCAL_ORIGINS: readonly string[] = ['http://localhost:5173', 'http://127.0.0.1:5173']
+
+export function originsOf(text: string | undefined): string[] {
+  const listed = (text ?? '')
+    .split(',')
+    .map((entry) => entry.trim().replace(/\/+$/, ''))
+    .filter((entry) => entry.length > 0)
+  return [...new Set([...listed, ...LOCAL_ORIGINS])]
 }
 
 export type Requirement = 'keeperKey' | 'dripKey' | 'seederKey'
@@ -135,7 +145,7 @@ export function loadConfig(
     houseSeed: v.HOUSE_SEED ?? null,
     helperUrl: v.HELPER_URL ?? 'https://helper.nearprotocol.com',
     dripAmount: nearToYoctoAmount(v.DRIP_AMOUNT_NEAR ?? '2'),
-    allowedOrigin: v.ALLOWED_ORIGIN ?? null,
+    allowedOrigins: originsOf(v.ALLOWED_ORIGIN),
     port: v.PORT === undefined ? 8787 : Number(v.PORT),
     clashMaxPerResolve: clash,
     demoFast: truthy(v.DEMO_FAST),

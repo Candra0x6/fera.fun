@@ -11,6 +11,7 @@ export type RelayMessage =
 
 export interface RelayHub {
   snapshot(): ArenaSnapshot | null
+  rebase(snapshot: ArenaSnapshot): boolean
   eventsAfter(after: string | null): ArenaEventEnvelope[]
   resume(after: string | null): RelayMessage[]
   subscribe(cb: (message: RelayMessage) => void): () => void
@@ -39,8 +40,10 @@ export function createRelayHub(feed: ChainFeed, capacity = 400): RelayHub {
     publish({ kind: 'snapshot', data: snapshot })
   })
   feed.onEnvelope((envelope) => {
-    ring.push(envelope)
-    if (ring.length > capacity) ring.shift()
+    if (base === null || envelope.blockNumber > base.blockNumber) {
+      ring.push(envelope)
+      if (ring.length > capacity) ring.shift()
+    }
     publish({ kind: 'event', data: envelope })
   })
   feed.onCommit((commit) => {
@@ -70,8 +73,19 @@ export function createRelayHub(feed: ChainFeed, capacity = 400): RelayHub {
     return ring.filter((entry) => after === null || entry.id > after)
   }
 
+  function rebase(snapshot: ArenaSnapshot): boolean {
+    if (base !== null && (snapshot.blockNumber < base.blockNumber || snapshot.round.roundId !== base.round.roundId)) return false
+    base = snapshot
+    for (let i = ring.length - 1; i >= 0; i -= 1) {
+      const entry = ring[i]
+      if (entry !== undefined && entry.blockNumber <= snapshot.blockNumber) ring.splice(i, 1)
+    }
+    return true
+  }
+
   return {
     snapshot: () => base,
+    rebase,
     eventsAfter,
     lastStatus: () => status,
     resume(after) {

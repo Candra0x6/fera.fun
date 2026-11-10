@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server'
-import { createArenaStore, createNearFeed } from '@animal/shared'
+import { createArenaStore, createNearFeed, decodeSnapshot, houseTokenSet } from '@animal/shared'
 import type { ChainFeed, FeedStatus } from '@animal/shared'
 import { createApi } from './api'
 import type { DripHandler } from './api'
@@ -16,8 +16,10 @@ import { createNearAccounts } from './nearAccounts'
 import type { NearTransport } from './nearPort'
 import { createNearTransport } from './nearTransport'
 import { bootRuntime } from './runtime'
+import { runSnapshotRefresh } from './snapshotRefresh'
 
 const STALE_AFTER_SECONDS = 5
+const SNAPSHOT_REFRESH_MS = 4000
 
 async function main(): Promise<void> {
   const { config, log, keeperTransport, port } = bootRuntime(process.env, ['keeperKey'])
@@ -134,7 +136,7 @@ async function main(): Promise<void> {
   }
   log.info({ demoAdmin: demo !== null, houseSeed: houseSeed !== null }, 'demo admin api')
 
-  const app = createApi({ health, drip, allowedOrigin: config.allowedOrigin, relay, demo })
+  const app = createApi({ health, drip, allowedOrigins: config.allowedOrigins, relay, demo })
   const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
     log.info({ port: info.port }, 'api listening')
   })
@@ -154,6 +156,16 @@ async function main(): Promise<void> {
   })
 
   const sleep = (ms: number): Promise<void> => new Promise<void>((resolve) => void setTimeout(resolve, ms))
+  void runSnapshotRefresh({
+    boundRound: () => boundRoundId,
+    read: async (roundId) =>
+      decodeSnapshot(await keeperTransport.view('get_arena_snapshot', { round_id: roundId }), houseTokenSet()),
+    rebase: (snapshot) => relay.rebase(snapshot),
+    intervalMs: SNAPSHOT_REFRESH_MS,
+    sleep,
+    shouldStop: () => stopping,
+    onError: (error) => log.debug({ error: error instanceof Error ? error.message.slice(0, 160) : 'unknown' }, 'snapshot refresh failed')
+  })
   await followRounds({
     fixedRoundId: config.roundId,
     readCurrentRoundId: async () => Number(await keeperTransport.view('current_round_id', {})),

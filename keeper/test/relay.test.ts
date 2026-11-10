@@ -135,7 +135,7 @@ function build() {
   const api = createApi({
     health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAccount: 'k.testnet', roundId: null, round: null }),
     drip: null,
-    allowedOrigin: null,
+    allowedOrigins: [],
     relay: hub,
     pingMs: 100
   })

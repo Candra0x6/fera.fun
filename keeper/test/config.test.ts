@@ -54,7 +54,7 @@ describe('loadConfig', () => {
       keeperAccountId: 'keeper-x.testnet',
       keeperKey: keeper,
       roundId: 3,
-      allowedOrigin: 'https://arena.example.test',
+      allowedOrigins: ['https://arena.example.test', 'http://localhost:5173', 'http://127.0.0.1:5173'],
       port: 9000,
       clashMaxPerResolve: 4,
       demoFast: true,
@@ -104,6 +104,23 @@ describe('loadConfig', () => {
     const seeder = secret()
     const config = loadConfig({ KEEPER_PRIVATE_KEY: keeper, SEEDER_PRIVATE_KEY: seeder, HOUSE_SEED: 'one two three four five six' })
     expect(secretsOf(config).sort()).toEqual([keeper, seeder, 'one two three four five six'].sort())
+  })
+})
+
+describe('ALLOWED_ORIGIN list', () => {
+  it('splits a comma list, trims, drops trailing slashes and always allows the local dev origins', () => {
+    const config = loadConfig({ ALLOWED_ORIGIN: ' https://a.example.test/ , https://b.example.test,, ' })
+    expect(config.allowedOrigins).toEqual([
+      'https://a.example.test',
+      'https://b.example.test',
+      'http://localhost:5173',
+      'http://127.0.0.1:5173'
+    ])
+  })
+
+  it('has only the local origins when the variable is unset and does not duplicate them', () => {
+    expect(loadConfig({}).allowedOrigins).toEqual(['http://localhost:5173', 'http://127.0.0.1:5173'])
+    expect(loadConfig({ ALLOWED_ORIGIN: 'http://localhost:5173' }).allowedOrigins).toEqual(['http://localhost:5173', 'http://127.0.0.1:5173'])
   })
 })
 

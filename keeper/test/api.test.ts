@@ -28,7 +28,7 @@ function handler(result: DripResponse): { handler: DripHandler; seen: Array<{ pu
 }
 
 function app(drip: DripHandler | null) {
-  return createApi({ health: () => HEALTH, drip, allowedOrigin: ORIGIN })
+  return createApi({ health: () => HEALTH, drip, allowedOrigins: [ORIGIN] })
 }
 
 function post(api: ReturnType<typeof app>, body: unknown, ip = '203.0.113.5', origin: string = ORIGIN) {
@@ -50,7 +50,7 @@ describe('GET /healthz', () => {
     const api = createApi({
       health: () => ({ ok: false, headBlock: 0, lagSeconds: 12, keeperAccount: 'k.testnet', roundId: null, round: null }),
       drip: null,
-      allowedOrigin: null
+      allowedOrigins: []
     })
     expect((await api.request('/healthz')).status).toBe(503)
   })
@@ -124,11 +124,27 @@ describe('CORS', () => {
     expect(denied.headers.get('access-control-allow-origin')).toBeNull()
   })
 
+  it('allows every origin of a configured list and nothing else', async () => {
+    const second = 'http://localhost:5173'
+    const api = createApi({ health: () => HEALTH, drip: null, allowedOrigins: [ORIGIN, second] })
+    for (const origin of [ORIGIN, second]) {
+      const response = await api.request('/healthz', { headers: { origin } })
+      expect(response.headers.get('access-control-allow-origin')).toBe(origin)
+    }
+    const preflight = await api.request('/drip', {
+      method: 'OPTIONS',
+      headers: { origin: second, 'access-control-request-method': 'POST', 'access-control-request-headers': 'content-type,x-demo-token' }
+    })
+    expect(preflight.headers.get('access-control-allow-origin')).toBe(second)
+    const other = await api.request('/healthz', { headers: { origin: 'http://localhost:5174' } })
+    expect(other.headers.get('access-control-allow-origin')).toBeNull()
+  })
+
   it('sets no cross-origin header when no origin is configured', async () => {
     const api = createApi({
       health: () => ({ ok: true, headBlock: 1, lagSeconds: 0, keeperAccount: 'k.testnet', roundId: null, round: null }),
       drip: null,
-      allowedOrigin: null
+      allowedOrigins: []
     })
     const response = await api.request('/healthz', { headers: { origin: ORIGIN } })
     expect(response.headers.get('access-control-allow-origin')).toBeNull()

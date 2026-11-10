@@ -17,7 +17,7 @@ Names only, in the repo root `.env.example`. Keys are supplied as environment va
 | `DRIP_ACCOUNT_ID`, `DRIP_PRIVATE_KEY` | drip | default `fera-drip.testnet` |
 | `SEEDER_ACCOUNT_ID`, `SEEDER_PRIVATE_KEY`, `HOUSE_SEED` | demo routes | default `fera-seeder.testnet`; the seed derives the keys of `h1..h5.<seeder>`, which launch the house coins |
 | `HELPER_URL`, `DRIP_AMOUNT_NEAR` | drip | defaults `https://helper.nearprotocol.com`, 2 |
-| `ALLOWED_ORIGIN`, `PORT` | `start` | CORS allows only `ALLOWED_ORIGIN`; `PORT` defaults to 8787 |
+| `ALLOWED_ORIGIN`, `PORT` | `start` | `ALLOWED_ORIGIN` is a comma list of web origins; `http://localhost:5173` and `http://127.0.0.1:5173` are always allowed and nothing else is; `PORT` defaults to 8787 |
 | `ROUND_ID` | `start` | optional; unset, the keeper follows `current_round_id` and re-binds the relay when it changes |
 | `CLASH_MAX_PER_RESOLVE`, `DEMO_FAST` | `start` | defaults 255, off |
 | `DEMO_ADMIN_TOKEN`, `HOUSE_GAS_BUFFER` | demo routes | header `x-demo-token`; NEAR kept in each house account on top of the 0.2 NEAR launch deposit, default 0.1 |
@@ -39,6 +39,7 @@ pnpm --filter keeper exec tsx scripts/near-fund.ts balances
 - The relay hub wraps the feed from `createNearFeed` in `@animal/shared`; `blockId` is `String(height)` and `txHash` is empty.
 - `/drip`: a fresh key first tries the helper (`fera-<10 hex>.testnet`, 10 NEAR, no treasury spend); when the helper refuses or is rate limited it is paused for 5 minutes and the drip account creates `<10 hex>.<drip account>` with that key and `DRIP_AMOUNT_NEAR`. The same key returns the same account; a balance below 1 NEAR is topped up at most once per hour; the drip account never goes below 3 NEAR.
 - `/demo/*`: `create-round` calls `create_round` from the seeder; `seed-house` creates or tops up `h1..h5.<seeder>` and launches one coin from each. A house coin is recognisable by a creator ending in `.fera-seeder.testnet`.
+- The relay snapshot is re-read from the chain every 4 s and replaces the base held for late joiners (live stream clients get no extra message); events already covered by it leave the replay ring.
 - Polling is paced from the contract state (next lock, seed block, lobby every 2 s) because the public RPC endpoints answer 429 under steady load.
 
 ## Railway (prepared, not deployed)
@@ -52,7 +53,7 @@ Service root is the repository root; set the config file path to `/keeper/railwa
 | `SEEDER_PRIVATE_KEY` | yes | key of `fera-seeder.testnet`; needed for the demo routes |
 | `HOUSE_SEED` | yes | the contents of `~/.config/animal-near/house-seed`; changing it orphans `h1..h5` |
 | `DEMO_ADMIN_TOKEN` | yes | the contents of `~/.config/animal-near/demo-admin-token` (also `VITE_DEMO_TOKEN` in the web build) |
-| `ALLOWED_ORIGIN` | no | the exact web origin, for example `https://fera-near.vercel.app` |
+| `ALLOWED_ORIGIN` | no | comma list of the exact web origins, for example `https://fera-near.vercel.app` |
 | `NEAR_RPC_URLS` | no | optional; defaults to the four public testnet endpoints |
 | `ARENA_ACCOUNT_ID`, `KEEPER_ACCOUNT_ID`, `DRIP_ACCOUNT_ID`, `SEEDER_ACCOUNT_ID` | no | optional; defaults match the deployment |
 

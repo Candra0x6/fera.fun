@@ -74,6 +74,7 @@ export function createSwitchableRelay(): SwitchableRelay {
       })
     },
     snapshot: () => current?.snapshot() ?? null,
+    rebase: (snapshot) => current?.rebase(snapshot) ?? false,
     eventsAfter: (after) => current?.eventsAfter(after) ?? [],
     resume: (after) => current?.resume(after) ?? [],
     lastStatus: () => current?.lastStatus() ?? null,
