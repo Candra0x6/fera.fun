@@ -17,6 +17,7 @@
     "@animal/shared": "workspace:*",
     "@hono/node-server": "2.1.5",
     "hono": "4.13.13",
+    "near-api-js": "7.4.0",
     "pino": "10.4.0",
     "viem": "2.57.7",
     "zod": "4.6.7"
