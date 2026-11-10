@@ -55,7 +55,14 @@ fn full_round_settles_and_every_claim_pays() {
     let winner = round.winner_coin_id;
     assert_eq!(round.coins[usize::from(winner)].status, Status::Champion);
     assert_eq!(round.alive_count, 1);
-    assert_eq!(round.coins.iter().filter(|c| c.status == Status::Eliminated).count(), 5);
+    assert_eq!(
+        round
+            .coins
+            .iter()
+            .filter(|c| c.status == Status::Eliminated)
+            .count(),
+        5
+    );
 
     let before = sim.bank;
     let held = sim.ledger(id, &acc("buyer"))[usize::from(winner)];
@@ -96,7 +103,9 @@ fn resolve_waits_for_the_seed_block_and_can_be_chunked() {
     sim.advance(15, 1);
     sim.call("keeper", 0, |a| a.lock_epoch(id));
     sim.advance(1, 2);
-    sim.expect_err("keeper", 0, "SeedBlockNotReached", |a| a.resolve_epoch(id, 2));
+    sim.expect_err("keeper", 0, "SeedBlockNotReached", |a| {
+        a.resolve_epoch(id, 2)
+    });
     sim.advance(1, 1);
     assert!(sim.call("keeper", 0, |a| a.resolve_epoch(id, 2)));
     assert_eq!(sim.round(id).phase, Phase::Knockout);
@@ -119,12 +128,18 @@ fn guarded_calls_fail_with_named_errors() {
     let mut sim = Sim::new(config());
     let id = sim.start_full_round(&[TENTH; 6]);
     let d = deadline(&sim);
-    sim.expect_err("buyer", NEAR, "Slippage", |a| a.buy(id, 0, U128(u128::MAX), d));
-    sim.expect_err("buyer", NEAR, "MinOutRequired", |a| a.buy(id, 0, U128(0), d));
+    sim.expect_err("buyer", NEAR, "Slippage", |a| {
+        a.buy(id, 0, U128(u128::MAX), d)
+    });
+    sim.expect_err("buyer", NEAR, "MinOutRequired", |a| {
+        a.buy(id, 0, U128(0), d)
+    });
     sim.expect_err("buyer", NEAR, "Expired", |a| a.buy(id, 0, U128(1), 1));
     sim.expect_err("buyer", NEAR, "CoinNotAlive", |a| a.buy(id, 9, U128(1), d));
     sim.expect_err("buyer", 0, "ZeroOut", |a| a.buy(id, 0, U128(1), d));
-    sim.expect_err("buyer", 0, "InsufficientBalance", |a| a.sell(id, 0, U128(1_000_000_000_000_000_000_000), U128(1), d));
+    sim.expect_err("buyer", 0, "InsufficientBalance", |a| {
+        a.sell(id, 0, U128(1_000_000_000_000_000_000_000), U128(1), d)
+    });
     sim.expect_err("buyer", 0, "RoundInProgress", |a| a.create_round());
     sim.expect_err("buyer", 0, "WrongPhase", |a| a.start_round(id));
     sim.expect_err("buyer", 0, "EpochTooEarly", |a| a.lock_epoch(id));
@@ -146,21 +161,43 @@ fn launch_rules() {
     let mut sim = Sim::new(config());
     let id = sim.call("creator", 0, |a| a.create_round());
     let n = |s: &str| s.to_string();
-    sim.expect_err("p0", TENTH - 1, "BadSeed", |a| a.launch_coin(id, n("Fox"), n("FOX"), 0, 0));
-    sim.expect_err("p0", 3 * TENTH, "BadSeed", |a| a.launch_coin(id, n("Fox"), n("FOX"), 0, 0));
-    sim.expect_err("p0", 2 * TENTH, "BadName", |a| a.launch_coin(id, n(""), n("FOX"), 0, 0));
-    sim.expect_err("p0", 2 * TENTH, "BadTicker", |a| a.launch_coin(id, n("Fox"), n("fox"), 0, 0));
-    sim.expect_err("p0", 2 * TENTH, "BadTicker", |a| a.launch_coin(id, n("Fox"), n("F"), 0, 0));
-    sim.expect_err("p0", 2 * TENTH, "BadCatalogId", |a| a.launch_coin(id, n("Fox"), n("FOX"), 5, 0));
-    sim.call("p0", 2 * TENTH, |a| a.launch_coin(id, n("Fox"), n("FOX"), 0, 0));
-    sim.call("p0", 2 * TENTH, |a| a.launch_coin(id, n("Fox2"), n("FOXB"), 1, 0));
-    sim.expect_err("p0", 2 * TENTH, "CreatorCapReached", |a| a.launch_coin(id, n("Fox3"), n("FOXC"), 2, 0));
+    sim.expect_err("p0", TENTH - 1, "BadSeed", |a| {
+        a.launch_coin(id, n("Fox"), n("FOX"), 0, 0)
+    });
+    sim.expect_err("p0", 3 * TENTH, "BadSeed", |a| {
+        a.launch_coin(id, n("Fox"), n("FOX"), 0, 0)
+    });
+    sim.expect_err("p0", 2 * TENTH, "BadName", |a| {
+        a.launch_coin(id, n(""), n("FOX"), 0, 0)
+    });
+    sim.expect_err("p0", 2 * TENTH, "BadTicker", |a| {
+        a.launch_coin(id, n("Fox"), n("fox"), 0, 0)
+    });
+    sim.expect_err("p0", 2 * TENTH, "BadTicker", |a| {
+        a.launch_coin(id, n("Fox"), n("F"), 0, 0)
+    });
+    sim.expect_err("p0", 2 * TENTH, "BadCatalogId", |a| {
+        a.launch_coin(id, n("Fox"), n("FOX"), 5, 0)
+    });
+    sim.call("p0", 2 * TENTH, |a| {
+        a.launch_coin(id, n("Fox"), n("FOX"), 0, 0)
+    });
+    sim.call("p0", 2 * TENTH, |a| {
+        a.launch_coin(id, n("Fox2"), n("FOXB"), 1, 0)
+    });
+    sim.expect_err("p0", 2 * TENTH, "CreatorCapReached", |a| {
+        a.launch_coin(id, n("Fox3"), n("FOXC"), 2, 0)
+    });
     sim.expect_err("p1", 0, "LobbyNotReady", |a| a.start_round(id));
     for i in 1..5 {
         let who = format!("p{i}");
-        sim.call(&who, 2 * TENTH, |a| a.launch_coin(id, n("Cat"), n("CAT"), 2, 0));
+        sim.call(&who, 2 * TENTH, |a| {
+            a.launch_coin(id, n("Cat"), n("CAT"), 2, 0)
+        });
     }
-    sim.expect_err("p9", 2 * TENTH, "RoundFull", |a| a.launch_coin(id, n("Cat"), n("CAT"), 2, 0));
+    sim.expect_err("p9", 2 * TENTH, "RoundFull", |a| {
+        a.launch_coin(id, n("Cat"), n("CAT"), 2, 0)
+    });
     let c = sim.view(|a| a.get_arena_snapshot(id));
     assert_eq!(c.coins.len(), 6);
     assert_eq!(c.coins[0].token, format!("{id}:0"));
@@ -190,7 +227,9 @@ fn failed_transfer_credits_claimable_and_can_be_claimed() {
     let d = deadline(&sim);
     sim.call("buyer", NEAR, |a| a.buy(id, 1, U128(1), d));
     let held = sim.ledger(id, &acc("buyer"))[1];
-    let out = sim.call("buyer", 0, |a| a.sell(id, 1, U128(held), U128(1), d)).0;
+    let out = sim
+        .call("buyer", 0, |a| a.sell(id, 1, U128(held), U128(1), d))
+        .0;
     sim.fail_payout("buyer", out);
     assert_eq!(sim.claimable(&acc("buyer")), out);
     assert_eq!(sim.view(|a| a.claimable_of(acc("buyer"))).0, out);
@@ -209,7 +248,9 @@ fn underfilled_lobby_aborts_and_refunds_launches() {
     let id = sim.call("creator", 0, |a| a.create_round());
     for i in 0..3 {
         let who = format!("p{i}");
-        sim.call(&who, 2 * TENTH, |a| a.launch_coin(id, format!("Cat{i}"), "CAT".into(), 2, 0));
+        sim.call(&who, 2 * TENTH, |a| {
+            a.launch_coin(id, format!("Cat{i}"), "CAT".into(), 2, 0)
+        });
     }
     sim.expect_err("x", 0, "AbortNotOpen", |a| a.abort_round(id));
     sim.advance(10_801, 10);
@@ -238,10 +279,16 @@ fn stalled_round_aborts_and_refunds_holders() {
     sim.advance(3_601, 100);
     sim.call("x", 0, |a| a.abort_round(id));
     assert_eq!(sim.round(id).phase, Phase::Aborted);
-    assert!(sim.round(id).coins.iter().all(|c| c.status == Status::Refunded));
+    assert!(sim
+        .round(id)
+        .coins
+        .iter()
+        .all(|c| c.status == Status::Refunded));
     sim.check_invariants(&[id], &accounts);
     let held = sim.ledger(id, &acc("buyer"))[3];
-    let paid = sim.call("buyer", 0, |a| a.claim_refund(id, 3, U128(held))).0;
+    let paid = sim
+        .call("buyer", 0, |a| a.claim_refund(id, 3, U128(held)))
+        .0;
     assert!(paid > 0 && paid < NEAR);
     sim.check_invariants(&[id], &accounts);
     for i in 0..6u8 {
@@ -259,7 +306,12 @@ fn arg_names_from_ts() -> std::collections::BTreeMap<String, BTreeSet<String>> {
     let mut map = std::collections::BTreeMap::new();
     let mut rest = &body[body.find('{').unwrap() + 1..];
     while let Some(colon) = rest.find(": [") {
-        let name = rest[..colon].trim().rsplit(|c: char| !c.is_alphanumeric()).next().unwrap().to_string();
+        let name = rest[..colon]
+            .trim()
+            .rsplit(|c: char| !c.is_alphanumeric())
+            .next()
+            .unwrap()
+            .to_string();
         let close = rest.find(']').unwrap();
         let list = &rest[colon + 3..close];
         let args: BTreeSet<String> = list
@@ -319,7 +371,9 @@ fn event_arg_names_match_the_shared_contract() {
     let next = id + 1;
     for i in 0..6 {
         let who = format!("p{i}");
-        sim.call(&who, 2 * TENTH, |a| a.launch_coin(next, "Cat".into(), "CAT".into(), 2, 0));
+        sim.call(&who, 2 * TENTH, |a| {
+            a.launch_coin(next, "Cat".into(), "CAT".into(), 2, 0)
+        });
     }
     sim.call("x", 0, |a| a.start_round(next));
     let d2 = deadline(&sim);
@@ -376,6 +430,9 @@ fn ring_keeps_the_last_256_events() {
     let tail = sim.view(|a| a.events_since(page.head_seq - 3, 100));
     assert_eq!(tail.events.len(), 3);
     assert_eq!(tail.events.last().map(|e| e.seq), Some(page.head_seq));
-    assert!(sim.view(|a| a.events_since(page.head_seq, 100)).events.is_empty());
+    assert!(sim
+        .view(|a| a.events_since(page.head_seq, 100))
+        .events
+        .is_empty());
     assert_eq!(sim.view(|a| a.events_since(0, 1000)).events.len(), 100);
 }

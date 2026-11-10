@@ -87,7 +87,15 @@ impl Sim {
     }
 
     fn set_env(&mut self, who: &str, deposit: u128, promise: Option<PromiseResult>) {
-        env_for(who, deposit, self.now, self.height, self.seed_byte, self.bank, promise);
+        env_for(
+            who,
+            deposit,
+            self.now,
+            self.height,
+            self.seed_byte,
+            self.bank,
+            promise,
+        );
     }
 
     pub fn advance(&mut self, secs: u64, blocks: u64) {
@@ -112,7 +120,8 @@ impl Sim {
                     for action in receipt.actions {
                         if let MockAction::Transfer { deposit, .. } = action {
                             self.bank -= deposit.as_yoctonear();
-                            *self.paid.entry(receipt.receiver_id.clone()).or_default() += deposit.as_yoctonear();
+                            *self.paid.entry(receipt.receiver_id.clone()).or_default() +=
+                                deposit.as_yoctonear();
                         }
                     }
                 }
@@ -133,10 +142,19 @@ impl Sim {
         }
     }
 
-    pub fn expect_err<R>(&mut self, who: &str, deposit: u128, code: &str, f: impl FnOnce(&mut Arena) -> R) {
+    pub fn expect_err<R>(
+        &mut self,
+        who: &str,
+        deposit: u128,
+        code: &str,
+        f: impl FnOnce(&mut Arena) -> R,
+    ) {
         match self.try_call(who, deposit, f) {
             Ok(_) => panic!("expected ArenaError:{code}, call succeeded"),
-            Err(e) => assert!(e.contains(&format!("ArenaError:{code}")), "expected {code}, got {e}"),
+            Err(e) => assert!(
+                e.contains(&format!("ArenaError:{code}")),
+                "expected {code}, got {e}"
+            ),
         }
     }
 
@@ -148,7 +166,8 @@ impl Sim {
     pub fn fail_payout(&mut self, to: &str, amount: u128) {
         self.bank += amount;
         self.set_env("fera-arena", 0, Some(PromiseResult::Failed));
-        self.arena.on_payout(acc(to), near_sdk::json_types::U128(amount));
+        self.arena
+            .on_payout(acc(to), near_sdk::json_types::U128(amount));
     }
 
     pub fn round(&self, id: u64) -> Round {
@@ -169,7 +188,9 @@ impl Sim {
             let who = format!("p{i}");
             let name = format!("Coin {i}");
             let ticker = format!("C{i}X");
-            self.call(&who, TENTH + seed, |a| a.launch_coin(id, name, ticker, (i % 5) as u8, 0));
+            self.call(&who, TENTH + seed, |a| {
+                a.launch_coin(id, name, ticker, (i % 5) as u8, 0)
+            });
         }
         self.call("anyone", 0, |a| a.start_round(id));
         id
@@ -206,7 +227,12 @@ impl Sim {
         let liabilities = self.arena.liabilities().0;
         assert_eq!(liabilities, owed, "liabilities counter");
         let storage = 307_200u128 * 10_000_000_000_000_000_000u128;
-        assert!(self.bank >= storage + liabilities, "storage floor: bank {} liabilities {}", self.bank, liabilities);
+        assert!(
+            self.bank >= storage + liabilities,
+            "storage floor: bank {} liabilities {}",
+            self.bank,
+            liabilities
+        );
     }
 }
 

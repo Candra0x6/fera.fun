@@ -44,7 +44,12 @@ fn expect_err<T>(row: &Value, r: MathResult<T>) {
 }
 
 fn params(row: &Value) -> Params {
-    let g = |k: &str| row["in"].get(k).map(|v| v.as_str().unwrap().parse::<u64>().unwrap()).unwrap_or(0);
+    let g = |k: &str| {
+        row["in"]
+            .get(k)
+            .map(|v| v.as_str().unwrap().parse::<u64>().unwrap())
+            .unwrap_or(0)
+    };
     Params {
         gamma_bps: g("gamma_bps") as u16,
         pool_factor_min_bps: g("pool_factor_min_bps") as u16,
@@ -87,7 +92,8 @@ fn curve_vectors() {
                 }
             }
             "buy_out" => {
-                let r = curve::buy_out(num(row, "v_mon"), num(row, "v_tok"), num(row, "mon_in_net"));
+                let r =
+                    curve::buy_out(num(row, "v_mon"), num(row, "v_tok"), num(row, "mon_in_net"));
                 if reverts {
                     expect_err(row, r);
                 } else {
@@ -105,7 +111,11 @@ fn curve_vectors() {
                 }
             }
             "boosted_vtok" => {
-                let r = curve::boosted_vtok(num(row, "v_mon"), num(row, "v_tok"), num(row, "boost_mon"));
+                let r = curve::boosted_vtok(
+                    num(row, "v_mon"),
+                    num(row, "v_tok"),
+                    num(row, "boost_mon"),
+                );
                 if reverts {
                     expect_err(row, r);
                 } else {
@@ -130,7 +140,12 @@ fn curve_vectors() {
                 }
             }
             "quote_buy" => {
-                let r = curve::quote_buy(num(row, "v_mon"), num(row, "v_tok"), num(row, "mon_in"), num(row, "fee_bps"));
+                let r = curve::quote_buy(
+                    num(row, "v_mon"),
+                    num(row, "v_tok"),
+                    num(row, "mon_in"),
+                    num(row, "fee_bps"),
+                );
                 if reverts {
                     expect_err(row, r);
                 } else {
@@ -142,7 +157,12 @@ fn curve_vectors() {
                 }
             }
             "quote_sell" => {
-                let r = curve::quote_sell(num(row, "v_mon"), num(row, "v_tok"), num(row, "tokens"), num(row, "fee_bps"));
+                let r = curve::quote_sell(
+                    num(row, "v_mon"),
+                    num(row, "v_tok"),
+                    num(row, "tokens"),
+                    num(row, "fee_bps"),
+                );
                 if reverts {
                     expect_err(row, r);
                 } else {
@@ -153,7 +173,8 @@ fn curve_vectors() {
                 }
             }
             "launch_seed" => {
-                let r = curve::launch_seed(num(row, "v_mon0"), num(row, "v_tok0"), num(row, "seed"));
+                let r =
+                    curve::launch_seed(num(row, "v_mon0"), num(row, "v_tok0"), num(row, "seed"));
                 if reverts {
                     expect_err(row, r);
                 } else {
@@ -243,11 +264,19 @@ fn combat_vectors() {
             }
             "clash_roll" => {
                 let id = num(row, "clash_id");
-                assert_eq!(combat::clash_roll(&seed(row), id).to_string(), out(row, "roll"), "{row}");
+                assert_eq!(
+                    combat::clash_roll(&seed(row), id).to_string(),
+                    out(row, "roll"),
+                    "{row}"
+                );
             }
             "hunt_roll" => {
                 let id = num(row, "coin_id");
-                assert_eq!(combat::hunt_roll(&seed(row), id).to_string(), out(row, "roll"), "{row}");
+                assert_eq!(
+                    combat::hunt_roll(&seed(row), id).to_string(),
+                    out(row, "roll"),
+                    "{row}"
+                );
             }
             "element_bps" => {
                 let r = combat::element_bps(
@@ -263,7 +292,11 @@ fn combat_vectors() {
                 }
             }
             "level_from_xp" => {
-                assert_eq!(combat::level_from_xp(num(row, "xp")).to_string(), out(row, "level"), "{row}");
+                assert_eq!(
+                    combat::level_from_xp(num(row, "xp")).to_string(),
+                    out(row, "level"),
+                    "{row}"
+                );
             }
             other => panic!("unknown fn {other}"),
         }

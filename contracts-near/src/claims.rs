@@ -6,9 +6,19 @@ use near_sdk::serde_json::json;
 use near_sdk::{env, AccountId};
 
 impl Arena {
-    fn fixed_claim(&mut self, round_id: u64, round: &mut Round, idx: usize, tokens: u128, holder: &AccountId) -> u128 {
+    fn fixed_claim(
+        &mut self,
+        round_id: u64,
+        round: &mut Round,
+        idx: usize,
+        tokens: u128,
+        holder: &AccountId,
+    ) -> u128 {
         let c = &mut round.coins[idx];
-        require(c.consolation_supply != 0 && c.consolation_pool != 0, E::NothingToClaim);
+        require(
+            c.consolation_supply != 0 && c.consolation_pool != 0,
+            E::NothingToClaim,
+        );
         self.ledger_debit(round_id, holder, idx as u8, tokens);
         c.supply -= tokens;
         let pay = mul_div(tokens, c.consolation_pool, c.consolation_supply);
@@ -35,10 +45,18 @@ impl Arena {
         pay
     }
 
-    pub(crate) fn do_claim_consolation(&mut self, round_id: u64, coin_id: u8, tokens: u128) -> u128 {
+    pub(crate) fn do_claim_consolation(
+        &mut self,
+        round_id: u64,
+        coin_id: u8,
+        tokens: u128,
+    ) -> u128 {
         let mut round = self.load_round(round_id);
         let idx = usize::from(coin_id);
-        require(idx < round.coins.len() && round.coins[idx].status == Status::Eliminated, E::NotClaimable);
+        require(
+            idx < round.coins.len() && round.coins[idx].status == Status::Eliminated,
+            E::NotClaimable,
+        );
         let holder = env::predecessor_account_id();
         let pay = self.fixed_claim(round_id, &mut round, idx, tokens, &holder);
         self.save_round(round_id, &round);
@@ -86,7 +104,10 @@ impl Arena {
         let mut round = self.load_round(round_id);
         let idx = usize::from(coin_id);
         let caller = env::predecessor_account_id();
-        require(idx < round.coins.len() && round.coins[idx].creator == caller, E::NotCreator);
+        require(
+            idx < round.coins.len() && round.coins[idx].creator == caller,
+            E::NotCreator,
+        );
         require(!round.coins[idx].seed_claimed, E::SeedAlreadyClaimed);
         let status = round.coins[idx].status;
         let tokens = round.coins[idx].seed_tokens;
@@ -132,9 +153,15 @@ impl Arena {
 
     pub(crate) fn do_refund_launch(&mut self, round_id: u64, coin_id: u8) -> u128 {
         let mut round = self.load_round(round_id);
-        require(round.phase == Phase::Aborted && round.lobby_abort, E::NotRefundable);
+        require(
+            round.phase == Phase::Aborted && round.lobby_abort,
+            E::NotRefundable,
+        );
         let idx = usize::from(coin_id);
-        require(idx < round.coins.len() && round.coins[idx].status == Status::Alive, E::NotRefundable);
+        require(
+            idx < round.coins.len() && round.coins[idx].status == Status::Alive,
+            E::NotRefundable,
+        );
         let caller = env::predecessor_account_id();
         require(round.coins[idx].creator == caller, E::NotCreator);
         let launch_fee = self.config.launch_fee.0;

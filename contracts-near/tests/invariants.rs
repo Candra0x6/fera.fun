@@ -30,7 +30,12 @@ fn accounts() -> Vec<AccountId> {
     NAMES.iter().map(|n| acc(n)).collect()
 }
 
-fn allowed(sim: &mut Sim, who: &str, deposit: u128, f: impl FnOnce(&mut fera_arena::Arena) -> U128) -> Option<u128> {
+fn allowed(
+    sim: &mut Sim,
+    who: &str,
+    deposit: u128,
+    f: impl FnOnce(&mut fera_arena::Arena) -> U128,
+) -> Option<u128> {
     match sim.try_call(who, deposit, f) {
         Ok(v) => Some(v.0),
         Err(e) => {
@@ -49,14 +54,23 @@ fn run_script(seed: u64) {
         let seed_amt = TENTH / 2 + u128::from(rng.below(95)) * TENTH / 10;
         let who = NAMES[i];
         sim.call(who, TENTH + seed_amt, |a| {
-            a.launch_coin(id, format!("Coin {i}"), format!("C{i}X"), (rng.below(5)) as u8, 0)
+            a.launch_coin(
+                id,
+                format!("Coin {i}"),
+                format!("C{i}X"),
+                (rng.below(5)) as u8,
+                0,
+            )
         });
     }
     sim.call("anyone", 0, |a| a.start_round(id));
     sim.check_invariants(&[id], &accts);
     let abort_script = rng.pct(10);
     let mut steps = 0;
-    while sim.round(id).phase != Phase::Settled && sim.round(id).phase != Phase::Aborted && steps < 400 {
+    while sim.round(id).phase != Phase::Settled
+        && sim.round(id).phase != Phase::Aborted
+        && steps < 400
+    {
         steps += 1;
         sim.advance(rng.below(8), rng.below(3));
         let who = NAMES[rng.below(10) as usize];
@@ -70,8 +84,14 @@ fn run_script(seed: u64) {
             4..=5 => {
                 let held = sim.ledger(id, &acc(who))[usize::from(coin)];
                 if held > 0 {
-                    let amt = if rng.pct(30) { held } else { held / (1 + u128::from(rng.below(4))) };
-                    if let Some(out) = allowed(&mut sim, who, 0, |a| a.sell(id, coin, U128(amt), U128(1), d)) {
+                    let amt = if rng.pct(30) {
+                        held
+                    } else {
+                        held / (1 + u128::from(rng.below(4)))
+                    };
+                    if let Some(out) = allowed(&mut sim, who, 0, |a| {
+                        a.sell(id, coin, U128(amt), U128(1), d)
+                    }) {
                         if rng.pct(10) {
                             sim.fail_payout(who, out);
                         }
@@ -94,14 +114,20 @@ fn run_script(seed: u64) {
             }
         }
         sim.check_invariants(&[id], &accts);
-        if abort_script && steps == 60 {
+        if abort_script
+            && steps == 60
+            && matches!(sim.round(id).phase, Phase::Leveling | Phase::Knockout)
+        {
             sim.advance(3_601, 10);
             sim.call("x", 0, |a| a.abort_round(id));
             sim.check_invariants(&[id], &accts);
         }
     }
     let phase = sim.round(id).phase;
-    assert!(phase == Phase::Settled || phase == Phase::Aborted, "script {seed} stuck in {phase:?}");
+    assert!(
+        phase == Phase::Settled || phase == Phase::Aborted,
+        "script {seed} stuck in {phase:?}"
+    );
     for who in NAMES {
         for coin in 0..6u8 {
             let held = sim.ledger(id, &acc(who))[usize::from(coin)];
@@ -111,8 +137,12 @@ fn run_script(seed: u64) {
             let status = sim.round(id).coins[usize::from(coin)].status;
             let paid = match status {
                 Status::Champion => allowed(&mut sim, who, 0, |a| a.redeem(id, U128(held))),
-                Status::Eliminated => allowed(&mut sim, who, 0, |a| a.claim_consolation(id, coin, U128(held))),
-                Status::Refunded => allowed(&mut sim, who, 0, |a| a.claim_refund(id, coin, U128(held))),
+                Status::Eliminated => allowed(&mut sim, who, 0, |a| {
+                    a.claim_consolation(id, coin, U128(held))
+                }),
+                Status::Refunded => {
+                    allowed(&mut sim, who, 0, |a| a.claim_refund(id, coin, U128(held)))
+                }
                 _ => None,
             };
             if let Some(p) = paid {
@@ -132,16 +162,25 @@ fn run_script(seed: u64) {
     let r = sim.round(id);
     let leftover = sim.arena.liabilities().0 - r.treasury;
     assert!(leftover < 100_000, "script {seed} leftover {leftover}");
-    assert!(sim.round(id).coins.iter().all(|c| c.r_mon == 0 || c.status == Status::Eliminated));
+    assert!(sim
+        .round(id)
+        .coins
+        .iter()
+        .all(|c| c.r_mon == 0 || c.status == Status::Eliminated));
 }
 
 #[test]
 fn thousand_random_scripts_keep_the_books_balanced() {
     for seed in 1..=scripts() {
-        run_script(seed);
+        if let Err(e) = std::panic::catch_unwind(|| run_script(seed)) {
+            panic!("script {seed} failed: {}", panic_text(e));
+        }
     }
 }
 
 fn scripts() -> u64 {
-    std::env::var("FERA_SCRIPTS").ok().and_then(|v| v.parse().ok()).unwrap_or(1000)
+    std::env::var("FERA_SCRIPTS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1000)
 }

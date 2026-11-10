@@ -93,7 +93,8 @@ pub fn power(
 ) -> MathResult<U256> {
     let pf = pool_factor_wad(r_lock, sum_r, n, p)?;
     let lvl = U256::from(BPS)
-        + U256::from(p.level_bonus_bps) * U256::from(level.checked_sub(1).ok_or(MathError::Overflow)?);
+        + U256::from(p.level_bonus_bps)
+            * U256::from(level.checked_sub(1).ok_or(MathError::Overflow)?);
     let elem = U256::from(element_bps(
         monster_type,
         opponent_type,
@@ -143,12 +144,15 @@ fn draw(seed: &[u8; 32], tag: &[u8], index: U256) -> U256 {
 }
 
 pub fn pairing(seed: &[u8; 32], alive_mask: u32) -> Vec<u8> {
-    let mut perm: Vec<u8> = (0u8..32).filter(|i| alive_mask & (1u32 << i) != 0).collect();
+    let mut perm: Vec<u8> = (0u8..32)
+        .filter(|i| alive_mask & (1u32 << i) != 0)
+        .collect();
     let n = perm.len();
     let mut i = n;
     while i > 1 {
         let idx = i - 1;
-        let j = (draw(seed, TAG_PAIR, U256::from(idx as u64)) % U256::from(i as u64)).low_u64() as usize;
+        let j = (draw(seed, TAG_PAIR, U256::from(idx as u64)) % U256::from(i as u64)).low_u64()
+            as usize;
         perm.swap(idx, j);
         i -= 1;
     }

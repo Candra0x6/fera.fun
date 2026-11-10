@@ -3,8 +3,8 @@ use crate::engine::{combat, curve};
 use crate::errors::{require, ArenaError as E};
 use crate::types::*;
 use crate::Arena;
-use near_sdk::serde_json::json;
 use near_sdk::env;
+use near_sdk::serde_json::json;
 
 struct Clash {
     epoch: u16,
@@ -63,7 +63,9 @@ impl Arena {
             );
         }
         let seed = round.seed;
-        if round.phase == Phase::Knockout && !self.run_clashes(round_id, &mut round, &seed, max_clashes) {
+        if round.phase == Phase::Knockout
+            && !self.run_clashes(round_id, &mut round, &seed, max_clashes)
+        {
             self.save_round(round_id, &round);
             return false;
         }
@@ -79,7 +81,13 @@ impl Arena {
         let mut played = 0u8;
         while usize::from(round.resolve_cursor) < total && played < max {
             let c = usize::from(round.resolve_cursor);
-            self.clash(round_id, round, seed, usize::from(perm[2 * c]), usize::from(perm[2 * c + 1]));
+            self.clash(
+                round_id,
+                round,
+                seed,
+                usize::from(perm[2 * c]),
+                usize::from(perm[2 * c + 1]),
+            );
             round.resolve_cursor += 1;
             played += 1;
         }
@@ -95,7 +103,14 @@ impl Arena {
         true
     }
 
-    fn clash(&mut self, round_id: u64, round: &mut Round, seed: &[u8; 32], id_a: usize, id_b: usize) {
+    fn clash(
+        &mut self,
+        round_id: u64,
+        round: &mut Round,
+        seed: &[u8; 32],
+        id_a: usize,
+        id_b: usize,
+    ) {
         let params = self.params();
         let mut ev = Clash {
             epoch: round.epoch,
@@ -125,7 +140,11 @@ impl Arena {
             ));
         }
         ev.roll = combat::clash_roll(seed, u(u128::from(ev.clash_id)));
-        (ev.winner, ev.loser) = if ev.roll < ev.win_prob_bps { (id_a, id_b) } else { (id_b, id_a) };
+        (ev.winner, ev.loser) = if ev.roll < ev.win_prob_bps {
+            (id_a, id_b)
+        } else {
+            (id_b, id_a)
+        };
         round.clashes_played = ev.clash_id + 1;
         self.merge_loser(round, &mut ev);
         self.emit(
@@ -215,7 +234,10 @@ impl Arena {
         });
         self.emit("Boosted", args);
         if leveled {
-            self.emit("LevelUp", json!({"roundId": round_id, "coinId": ev.winner, "level": new_level}));
+            self.emit(
+                "LevelUp",
+                json!({"roundId": round_id, "coinId": ev.winner, "level": new_level}),
+            );
         }
     }
 
@@ -278,7 +300,10 @@ impl Arena {
             });
             self.emit("HuntResolved", args);
             if leveled {
-                self.emit("LevelUp", json!({"roundId": round_id, "coinId": i, "level": new_level}));
+                self.emit(
+                    "LevelUp",
+                    json!({"roundId": round_id, "coinId": i, "level": new_level}),
+                );
             }
         }
     }
@@ -328,17 +353,29 @@ impl Arena {
             round.lobby_abort = true;
             round.launch_fees_owed = round.coins.len() as u128 * cfg.launch_fee.0;
             self.save_round(round_id, &round);
-            self.emit("RoundAborted", json!({"roundId": round_id, "reason": ABORT_LOBBY_UNDERFILLED}));
+            self.emit(
+                "RoundAborted",
+                json!({"roundId": round_id, "reason": ABORT_LOBBY_UNDERFILLED}),
+            );
             return;
         }
-        require(round.phase == Phase::Leveling || round.phase == Phase::Knockout, E::WrongPhase);
-        require(now >= round.started_at + u64::from(cfg.max_round_seconds), E::AbortNotOpen);
+        require(
+            round.phase == Phase::Leveling || round.phase == Phase::Knockout,
+            E::WrongPhase,
+        );
+        require(
+            now >= round.started_at + u64::from(cfg.max_round_seconds),
+            E::AbortNotOpen,
+        );
         round.locked = false;
         round.alive_mask = 0;
         self.abort_alive_coins(round_id, &mut round);
         round.phase = Phase::Aborted;
         self.save_round(round_id, &round);
-        self.emit("RoundAborted", json!({"roundId": round_id, "reason": ABORT_MAX_ROUND_TIME}));
+        self.emit(
+            "RoundAborted",
+            json!({"roundId": round_id, "reason": ABORT_MAX_ROUND_TIME}),
+        );
     }
 
     fn abort_alive_coins(&mut self, round_id: u64, round: &mut Round) {
@@ -366,7 +403,10 @@ impl Arena {
             );
         }
         let mut pot = round.prize_pot;
-        let last = round.coins.iter().rposition(|c| c.status == Status::Alive && c.r_mon != 0);
+        let last = round
+            .coins
+            .iter()
+            .rposition(|c| c.status == Status::Alive && c.r_mon != 0);
         if sum_r == 0 || last.is_none() {
             round.treasury += pot;
             pot = 0;
@@ -380,7 +420,11 @@ impl Arena {
             }
             let mut share = 0u128;
             if pot != 0 && c.r_mon != 0 {
-                share = if Some(i) == last { pot - given } else { crate::base::mul_div(pot, c.r_mon, sum_r) };
+                share = if Some(i) == last {
+                    pot - given
+                } else {
+                    crate::base::mul_div(pot, c.r_mon, sum_r)
+                };
                 given += share;
             }
             let pool = c.r_mon + share;

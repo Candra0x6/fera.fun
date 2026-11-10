@@ -33,7 +33,10 @@ pub fn ok<T>(r: MathResult<T>) -> T {
 }
 
 pub fn mul_div(a: u128, b: u128, c: u128) -> u128 {
-    lo(ok(crate::engine::div(ok(crate::engine::mul(u(a), u(b))), u(c))))
+    lo(ok(crate::engine::div(
+        ok(crate::engine::mul(u(a), u(b))),
+        u(c),
+    )))
 }
 
 pub fn mul_bps(a: u128, bps: u128) -> u128 {
@@ -64,7 +67,11 @@ pub fn check_name(name: &str) {
 pub fn check_ticker(ticker: &str) {
     let b = ticker.as_bytes();
     require(b.len() >= 2 && b.len() <= 7, E::BadTicker);
-    require(b.iter().all(|c| c.is_ascii_digit() || c.is_ascii_uppercase()), E::BadTicker);
+    require(
+        b.iter()
+            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase()),
+        E::BadTicker,
+    );
 }
 
 impl Arena {
@@ -89,13 +96,25 @@ impl Arena {
         }
     }
 
-    pub(crate) fn ledger_credit(&self, round_id: u64, account: &AccountId, coin_id: u8, amount: u128) {
+    pub(crate) fn ledger_credit(
+        &self,
+        round_id: u64,
+        account: &AccountId,
+        coin_id: u8,
+        amount: u128,
+    ) {
         let mut bal = self.ledger_get(round_id, account);
         bal[coin_id as usize] += amount;
         self.ledger_set(round_id, account, bal);
     }
 
-    pub(crate) fn ledger_debit(&self, round_id: u64, account: &AccountId, coin_id: u8, amount: u128) {
+    pub(crate) fn ledger_debit(
+        &self,
+        round_id: u64,
+        account: &AccountId,
+        coin_id: u8,
+        amount: u128,
+    ) {
         let mut bal = self.ledger_get(round_id, account);
         require(bal[coin_id as usize] >= amount, E::InsufficientBalance);
         bal[coin_id as usize] -= amount;
@@ -116,7 +135,8 @@ impl Arena {
     }
 
     pub(crate) fn emit(&mut self, name: &str, data: Value) {
-        let line = json!({"standard": "fera_arena", "version": "1.0.0", "event": name, "data": data});
+        let line =
+            json!({"standard": "fera_arena", "version": "1.0.0", "event": name, "data": data});
         env::log_str(&format!("EVENT_JSON:{line}"));
         self.head_seq += 1;
         let record = EventRecord {
@@ -135,7 +155,10 @@ impl Arena {
 
     pub(crate) fn assert_floor(&self) {
         let need = Self::storage_cost().saturating_add(self.liabilities);
-        require(env::account_balance().as_yoctonear() >= need, E::StorageFloorBreached);
+        require(
+            env::account_balance().as_yoctonear() >= need,
+            E::StorageFloorBreached,
+        );
     }
 
     pub(crate) fn pay(&mut self, to: &AccountId, amount: u128) {
@@ -169,7 +192,10 @@ impl Arena {
         self.current_round_id = round_id;
         let mut round = Round::new(now_s());
         let config = near_sdk::serde_json::to_value(&self.config).unwrap_or(Value::Null);
-        self.emit("RoundCreated", json!({"roundId": round_id, "config": config}));
+        self.emit(
+            "RoundCreated",
+            json!({"roundId": round_id, "config": config}),
+        );
         if previous != 0 {
             let mut prev = self.load_round(previous);
             let carry = prev.treasury - prev.launch_fees_owed;
@@ -211,15 +237,25 @@ impl Arena {
         let cfg = self.config.clone();
         let coin_id = round.coins.len();
         require(coin_id < usize::from(cfg.max_coins), E::RoundFull);
-        require(monster_type < MONSTER_TYPES && skin_id < SKIN_TYPES, E::BadCatalogId);
+        require(
+            monster_type < MONSTER_TYPES && skin_id < SKIN_TYPES,
+            E::BadCatalogId,
+        );
         check_name(&name);
         check_ticker(&ticker);
         let creator = env::predecessor_account_id();
-        require(round.coins.iter().filter(|c| c.creator == creator).count() < 2, E::CreatorCapReached);
+        require(
+            round.coins.iter().filter(|c| c.creator == creator).count() < 2,
+            E::CreatorCapReached,
+        );
         require(deposit >= cfg.launch_fee.0, E::BadSeed);
         let seed = deposit - cfg.launch_fee.0;
         require(seed >= cfg.min_seed.0 && seed <= cfg.max_seed.0, E::BadSeed);
-        let l = ok(curve::launch_seed(u(cfg.v_mon0.0), u(cfg.v_tok0.0), u(seed)));
+        let l = ok(curve::launch_seed(
+            u(cfg.v_mon0.0),
+            u(cfg.v_tok0.0),
+            u(seed),
+        ));
         let (tokens, v_tok, v_mon) = (lo(l.tokens), lo(l.v_tok), lo(l.v_mon));
         round.coins.push(Coin {
             creator: creator.clone(),
@@ -275,26 +311,45 @@ impl Arena {
         let count = round.coins.len();
         let full = count >= usize::from(cfg.max_coins);
         let now = now_s();
-        let deadline =
-            now >= round.created_at + u64::from(cfg.lobby_seconds) && count >= usize::from(cfg.min_coins);
+        let deadline = now >= round.created_at + u64::from(cfg.lobby_seconds)
+            && count >= usize::from(cfg.min_coins);
         require(full || deadline, E::LobbyNotReady);
-        round.phase = if cfg.leveling_epochs > 0 { Phase::Leveling } else { Phase::Knockout };
+        round.phase = if cfg.leveling_epochs > 0 {
+            Phase::Leveling
+        } else {
+            Phase::Knockout
+        };
         round.started_at = now;
         round.last_epoch_resolved_at = now;
         round.alive_count = count as u8;
         self.save_round(round_id, &round);
-        self.emit("RoundStarted", json!({"roundId": round_id, "startedAt": now, "coins": count}));
+        self.emit(
+            "RoundStarted",
+            json!({"roundId": round_id, "startedAt": now, "coins": count}),
+        );
     }
 
     pub(crate) fn tradable(&self, round: &Round, coin_id: u8) -> usize {
-        require(round.phase == Phase::Leveling || round.phase == Phase::Knockout, E::WrongPhase);
+        require(
+            round.phase == Phase::Leveling || round.phase == Phase::Knockout,
+            E::WrongPhase,
+        );
         require(!round.locked, E::Locked);
         let idx = usize::from(coin_id);
-        require(idx < round.coins.len() && round.coins[idx].status == Status::Alive, E::CoinNotAlive);
+        require(
+            idx < round.coins.len() && round.coins[idx].status == Status::Alive,
+            E::CoinNotAlive,
+        );
         idx
     }
 
-    pub(crate) fn do_buy(&mut self, round_id: u64, coin_id: u8, min_out: u128, deadline_ms: u64) -> u128 {
+    pub(crate) fn do_buy(
+        &mut self,
+        round_id: u64,
+        coin_id: u8,
+        min_out: u128,
+        deadline_ms: u64,
+    ) -> u128 {
         let deposit = env::attached_deposit().as_yoctonear();
         require(env::block_timestamp_ms() <= deadline_ms, E::Expired);
         require(min_out != 0, E::MinOutRequired);
@@ -390,7 +445,10 @@ impl Arena {
 
     pub(crate) fn do_lock_epoch(&mut self, round_id: u64) {
         let mut round = self.load_round(round_id);
-        require(round.phase == Phase::Leveling || round.phase == Phase::Knockout, E::WrongPhase);
+        require(
+            round.phase == Phase::Leveling || round.phase == Phase::Knockout,
+            E::WrongPhase,
+        );
         require(!round.locked, E::Locked);
         let now = now_s();
         require(

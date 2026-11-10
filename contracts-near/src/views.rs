@@ -56,13 +56,24 @@ impl Arena {
         lo(q.mon_out)
     }
 
-    pub(crate) fn do_pending_consolation(&self, round_id: u64, coin_id: u8, holder: &AccountId) -> u128 {
+    pub(crate) fn do_pending_consolation(
+        &self,
+        round_id: u64,
+        coin_id: u8,
+        holder: &AccountId,
+    ) -> u128 {
         let (round, idx) = self.view_coin(round_id, coin_id);
         let c = &round.coins[idx];
-        if (c.status != Status::Eliminated && c.status != Status::Refunded) || c.consolation_supply == 0 {
+        if (c.status != Status::Eliminated && c.status != Status::Refunded)
+            || c.consolation_supply == 0
+        {
             return 0;
         }
-        mul_div(self.ledger_get(round_id, holder)[idx], c.consolation_pool, c.consolation_supply)
+        mul_div(
+            self.ledger_get(round_id, holder)[idx],
+            c.consolation_pool,
+            c.consolation_supply,
+        )
     }
 
     pub(crate) fn do_pending_redeem(&self, round_id: u64, holder: &AccountId) -> u128 {
@@ -95,6 +106,10 @@ impl Arena {
             }
             seq += 1;
         }
-        EventsPage { events, head_seq: head, oldest_seq: oldest }
+        EventsPage {
+            events,
+            head_seq: head,
+            oldest_seq: oldest,
+        }
     }
 }

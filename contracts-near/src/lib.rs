@@ -28,7 +28,12 @@ impl Arena {
     pub fn init(config: Config) -> Self {
         require(!env::state_exists(), E::AlreadyInitialized);
         config.validate();
-        Arena { config, current_round_id: 0, head_seq: 0, liabilities: 0 }
+        Arena {
+            config,
+            current_round_id: 0,
+            head_seq: 0,
+            liabilities: 0,
+        }
     }
 
     #[payable]
@@ -53,7 +58,13 @@ impl Arena {
     }
 
     #[payable]
-    pub fn buy(&mut self, round_id: u64, coin_id: u8, min_tokens_out: U128, deadline_ms: u64) -> U128 {
+    pub fn buy(
+        &mut self,
+        round_id: u64,
+        coin_id: u8,
+        min_tokens_out: U128,
+        deadline_ms: u64,
+    ) -> U128 {
         U128(self.do_buy(round_id, coin_id, min_tokens_out.0, deadline_ms))
     }
 
@@ -139,7 +150,10 @@ impl Arena {
     }
 
     pub fn balances_of(&self, round_id: u64, account_id: AccountId) -> Vec<U128> {
-        self.ledger_get(round_id, &account_id).iter().map(|b| U128(*b)).collect()
+        self.ledger_get(round_id, &account_id)
+            .iter()
+            .map(|b| U128(*b))
+            .collect()
     }
 
     pub fn pending_consolation(&self, round_id: u64, coin_id: u8, account_id: AccountId) -> U128 {
