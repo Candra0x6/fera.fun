@@ -1,659 +1,289 @@
-# FERA.FUN on Monad
+# FERA.FUN on NEAR
 
-![Uploading FERA.FUN Dragon Crest.png…]()
-What if Pump.fun-style token launches became a real-time battle royale?
+What if memecoin launches were a real-time battle royale? Up to 6 coins are launched into a shared 3D arena, level up by hunting, and then fight in knockout epochs until one survives. A defeated coin's liquidity is merged into its conqueror, its own holders are paid a fixed consolation rate, and the last coin is redeemable for its pool plus the prize pot. Every rule runs in one NEAR smart contract; the browser only replays confirmed on-chain events.
 
-FERA.FUN turns token launches into a PvE battle arena on Monad, where coins spawn, level up, and fight until only one survives. Up to 6 coins compete in a shared 3D arena, where every defeated coin’s liquidity is redistributed to boost the winner, reward defeated holders, and fuel the prize pool. Powered by on-chain game mechanics and random outcomes, FERA.FUN transforms token trading into a competitive experience where every battle changes the game and every round crowns a new potential champion.
+Built for the NEAR HACKATHON (tracks `games` and `memecoins`). This is a port: the game existed on Monad before the hackathon, and everything judged here is the NEAR integration built in the window. See [Baseline and hackathon work](#9-baseline-and-hackathon-work).
 
-> **Testnet play-money.** MON on Monad testnet has no real value. Do not deposit real funds anywhere in this project. The code is not audited and nothing here is legal or financial advice.
+> **Testnet play-money, not audited.** NEAR on testnet has no value. Do not send real funds anywhere in this project. The contract has not been audited and nothing here is legal or financial advice.
 
 | | |
 |---|---|
-| Live app | https://fera-fun.vercel.app (add `/?demo` for the demo controls) |
-| Keeper API | https://fera-keeper.de.deplexo.com |
-| X post | https://x.com/ascey102/status/2113870984726151542 |
-| Arena contract | [`0xb88E9941262ACE4852A5389f674Cc48558751C83`](https://testnet.monadvision.com/address/0xb88E9941262ACE4852A5389f674Cc48558751C83) |
-| EntropySeedSource | [`0xa573D315d201d7BbdC405E5b26dC9eC9B6EFfF80`](https://testnet.monadvision.com/address/0xa573D315d201d7BbdC405E5b26dC9eC9B6EFfF80) |
-| MonsterCoin implementation | [`0x91d9D86D133f107A4F86E7BA71BF0049E27ACF54`](https://testnet.monadvision.com/address/0x91d9D86D133f107A4F86E7BA71BF0049E27ACF54) |
-| Keeper EOA | [`0xFaf5775e91d5c48f88E5312146eACb2c723288d9`](https://testnet.monadvision.com/address/0xFaf5775e91d5c48f88E5312146eACb2c723288d9) |
-| Deploy block | 73723341 |
-| Network | Monad testnet, chain id 10143, RPC `https://testnet-rpc.monad.xyz` |
-| Mainnet (showcase) | Monad mainnet, chain id 143, Arena [`0x1457C31eb744f805E3F5a3c0a369b45397ACD975`](https://monadvision.com/address/0x1457C31eb744f805E3F5a3c0a369b45397ACD975), deployed and verified, no round open. See [Mainnet deployment](#mainnet-deployment). |
-
-The 3D arena is the Three.js prototype (`monster_arena_3d_prototype (1).html`) extracted into a Vite app. It replays confirmed chain events and never decides an outcome. All money and all outcomes live on chain.
-
----
+| Live demo | `<<PLACEHOLDER: hosted web URL, added when hosting exists>>` (append `/?demo` for the demo controls) |
+| Demo video / X post | `<<PLACEHOLDER: X post URL, published by the team lead>>` |
+| Arena contract | [`fera-arena.testnet`](https://testnet.nearblocks.io/address/fera-arena.testnet) (NEAR testnet) |
+| Deployment record | [`deployments/near-testnet.json`](deployments/near-testnet.json): wasm sha256, deploy and init transactions, config, gas |
+| Diff of the hackathon work | [`monad-final...near`](https://github.com/Candra0x6/fera.fun/compare/monad-final...near) now; at the freeze the same diff is published as `monad-final...near-submission` |
+| Monad baseline | tag `monad-final`; the Monad README is `git show monad-final:README.md` |
 
 ## Contents
 
-1. [The game in four stages](#1-the-game-in-four-stages)
-2. [System architecture](#2-system-architecture)
-3. [Smart contracts](#3-smart-contracts)
-4. [Round lifecycle](#4-round-lifecycle)
-5. [One epoch, step by step](#5-one-epoch-step-by-step)
-6. [Economy and mechanics](#6-economy-and-mechanics)
-7. [Fairness and attack surface](#7-fairness-and-attack-surface)
-8. [Client data flow](#8-client-data-flow)
-9. [Token images](#9-token-images)
-10. [Keeper and services](#10-keeper-and-services)
-11. [Deployment topology](#11-deployment-topology)
-12. [Repository layout](#12-repository-layout)
-13. [Run it locally](#13-run-it-locally)
-14. [Deploy it](#14-deploy-it)
-15. [Demo guide](#15-demo-guide)
-16. [Technology](#16-technology)
-17. [What is real, what is simplified](#17-what-is-real-what-is-simplified)
+1. [Try it in 60 seconds](#1-try-it-in-60-seconds)
+2. [Run it yourself](#2-run-it-yourself)
+3. [The game](#3-the-game)
+4. [How it works on NEAR](#4-how-it-works-on-near)
+5. [Fairness and trust](#5-fairness-and-trust)
+6. [No admin key, Sybil and storage notes](#6-no-admin-key-sybil-and-storage-notes)
+7. [Measured numbers](#7-measured-numbers)
+8. [Parity with the Monad contracts](#8-parity-with-the-monad-contracts)
+9. [Baseline and hackathon work](#9-baseline-and-hackathon-work)
+10. [Repository layout](#10-repository-layout)
+11. [Disclosures: libraries and AI-generated code](#11-disclosures-libraries-and-ai-generated-code)
+12. [Known limits and what is next](#12-known-limits-and-what-is-next)
 
 ---
 
-## 1. The game in four stages
+## 1. Try it in 60 seconds
+
+Do X, see Y. Steps 1 to 6 need the hosted demo (`<<PLACEHOLDER: hosted web URL>>`) and the keeper that serves it; step 0 needs nothing but a checkout (see [Run it yourself](#2-run-it-yourself)).
+
+| # | Do | See |
+|---|---|---|
+| 0 | Offline, no chain: `pnpm --filter web dev`, open `http://127.0.0.1:5173/?replay=fixture&speed=4` | A recorded NEAR round replays in the 3D arena at 4x speed: lobby, hunts, clashes, merger boosts, the Chosen One. The status chip reads `Replay` |
+| 1 | Open `<hosted URL>/?demo` | The status chip turns live; a burner account is created in the browser and funded with 2 NEAR through the keeper's `/drip`. No wallet popup, no gas prompt |
+| 2 | Click **Create Lobby** | One signed call; a toast links the transaction on `testnet.nearblocks.io` |
+| 3 | Click **Seed 5 Animals**, then launch the sixth coin yourself | Five house coins are launched by the keeper's house accounts (labelled House), your coin fills the lobby and the round starts by itself |
+| 4 | Watch the round; buy or sell a coin between epochs | Every 14 s or so the arena locks (trading stops), then resolves: hunts, clashes, merger boosts and eliminations animate from events read on chain |
+| 5 | When one coin is left, press **Redeem** on the Chosen One screen | The pool plus prize pot is paid to your burner balance for the coins you hold |
+| 6 | Read the strings on screen | Every amount says NEAR; coins are described as ledger assets of the arena |
+
+A full 6-coin round takes well under two minutes after the lobby fills (measured numbers in [section 7](#7-measured-numbers)).
+
+## 2. Run it yourself
+
+Prerequisites: Node 24 or newer, pnpm 11.4.0 (see `packageManager` in `package.json`). For the contract: Rust (stable, with the `wasm32-unknown-unknown` target) and `cargo-near`. For regenerating the parity vectors only: Foundry and the Solidity libraries from the Monad baseline.
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter web dev          # http://127.0.0.1:5173, defaults to fera-arena.testnet on the public testnet RPC list
+pnpm typecheck && pnpm test    # shared, keeper and web
+cargo test --manifest-path contracts-near/Cargo.toml   # contract, vectors, scenario replay, 1000 random scripts
+```
+
+Web modes (query string): no parameter follows the live chain; `?demo` adds the demo controls; `?replay=fixture&speed=4` replays `shared/fixtures/arena-near-replay.json` with no chain; `?sim=1` is the original prototype simulation; `&debug=1` shows the FPS cell.
+
+Environment variable names only (values live in your shell or host and are never committed; the full list is in [`.env.example`](.env.example)):
+
+| Name | Used by | Meaning |
+|---|---|---|
+| `VITE_NEAR_NETWORK`, `VITE_ARENA_ACCOUNT`, `VITE_RPC_URLS`, `VITE_ROUND_ID` | web | network, arena account (default `fera-arena.testnet`), comma list of RPC URLs, optional pinned round |
+| `VITE_KEEPER_URL` | web | keeper base URL for `/snapshot`, `/events`, `/stream` and `/drip` |
+| `VITE_DEMO_TOKEN` | web | demo token for the `?demo` controls |
+| `NEAR_NETWORK`, `NEAR_RPC_URLS`, `ARENA_ACCOUNT_ID` | keeper | network, RPC failover list, arena account |
+| `KEEPER_ACCOUNT_ID`, `KEEPER_PRIVATE_KEY` | keeper | account that sends `start_round`, `lock_epoch`, `resolve_epoch` |
+| `DRIP_ACCOUNT_ID`, `DRIP_PRIVATE_KEY`, `HELPER_URL`, `DRIP_AMOUNT_NEAR` | keeper | funding of fresh burner accounts |
+| `SEEDER_ACCOUNT_ID`, `SEEDER_PRIVATE_KEY`, `HOUSE_SEED`, `DEMO_ADMIN_TOKEN`, `HOUSE_GAS_BUFFER` | keeper | demo routes and house coins |
+| `ALLOWED_ORIGIN`, `PORT`, `ROUND_ID`, `CLASH_MAX_PER_RESOLVE`, `DEMO_FAST` | keeper | CORS origins, port, optional pinned round, resolve batch size, fast mode |
+
+Running the live game against your own contract:
+
+1. Build the contract: `cargo near build non-reproducible-wasm` inside `contracts-near/`.
+2. Deploy it to an account you control and call `init` once with a config shaped like the `config` object of [`deployments/near-testnet.json`](deployments/near-testnet.json). `init` panics with `ArenaError:AlreadyInitialized` on a second call.
+3. Start the keeper (`pnpm --filter keeper start`, details in [`keeper/README.md`](keeper/README.md)) with your own testnet keys, and point the web at it with `VITE_KEEPER_URL`, `VITE_ARENA_ACCOUNT` and `VITE_RPC_URLS`.
+
+Regenerating the parity vectors: `bash near-parity/run.sh all` (needs `contracts/lib` from the Monad baseline, see [section 8](#8-parity-with-the-monad-contracts)). The committed vectors are what `cargo test` uses.
+
+## 3. The game
 
 | Stage | Name | What happens |
 |---|---|---|
-| 1 | **Arena Spawn** | Coins are launched into a lobby. Each launch deploys an ERC-20 clone with its own pool; the creator's seed stays inside the coin until the coin ends. |
-| 2 | **PvE Leveling** | Trading is open between epochs. Each epoch the arena locks, draws a seed and every coin hunts wild monsters for xp and levels. |
-| 3 | **Liquidity Merger** | Knockout epochs pair coins from the fresh seed. A losing coin is merged into its winner: its reserve splits into a boost for the winner, a fixed-rate consolation for its own holders, the prize pot and the treasury. |
+| 1 | **Arena Spawn** | Coins are launched into a lobby. A launch sends `launchFee + seed` (0.1 + 0.1 NEAR in the blitz preset). The seed stays inside the coin until it ends. |
+| 2 | **PvE Leveling** | Trading is open between epochs. Each epoch the arena locks, draws a seed and every coin hunts for xp and levels. |
+| 3 | **Liquidity Merger** | Knockout epochs pair coins from the fresh seed. A losing coin is merged into its winner. |
 | 4 | **The Chosen One** | The last coin is redeem-only at `(pool + prize pot) / supply`. |
 
+Game loop on paper: every **epoch (about 14 s of open trading, then a few seconds locked)** you can buy or sell any alive coin, then watch the lock, the seed and the clashes; every **round (about 75 s, four epochs in the blitz preset: one leveling, three knockout)** one coin is crowned and its holders redeem; every **session** is a sequence of rounds, each created by anyone once the previous one is settled or aborted.
+
+### Economy and mechanics
+
+Every coin has a constant-product curve with virtual reserves (`vMon`, `vTok`) and a real reserve `rMon`. The field names keep the Monad spelling (`monAmount`, `rMon`, `vMon`) on purpose; the unit is NEAR in yoctoNEAR.
+
+| Operation | Formula (rounding favours the pool) |
+|---|---|
+| buy `in` | `net = in - ceil(in * fee)`; `out = vTok - ceil(vMon * vTok / (vMon + net))` |
+| sell `t` | `gross = vMon - ceil(vMon * vTok / (vTok + t))`; `out = gross - ceil(gross * fee)` |
+| boost `X` (merger) | `vMon += X`, `rMon += X`, `vTok = ceil(k / vMon)` (a virtual buy-and-burn, so a 1-wei seller right after a merge cannot capture the bonus) |
+
+- **Combat.** `power = poolFactor * (1 + 4% * (level - 1)) * elementMultiplier`, with `poolFactor = clamp((rLock * n / sumR) ^ 0.88, 0.1, 10)`. Five monster types (Fire Dragon, Ice Wolf, Earth Golem, Electric Fox, Dark Spirit) on a cycle: the next type is 1.15x, the previous 0.87x. `winProb = clamp(powerA / (powerA + powerB), 15%, 85%)`; `A wins iff roll < winProb` with `roll = keccak(seed, "CLASH", clashId) % 10000`.
+- **Hunts.** Each alive coin rolls `keccak(seed, "HUNT", coinId) % 100 < 50` every epoch: 10 xp on success, 20 xp for a clash win; levels 1 to 10 come from xp thresholds.
+- **Merger split of the loser's reserve:** 50% boost to the winner's curve, 30% fixed-rate consolation for the loser's holders, 15% prize pot, 5% treasury (the treasury remainder takes the rounding).
+- **Settlement.** Redeem pays `(rMon + prizePot) / supply` of the winner, fixed at settlement. Eliminated-coin holders `claim_consolation` at the rate fixed at elimination. Creators `claim_seed` at the matching rate. An underfilled lobby is aborted and each creator takes the seed and launch fee back with `refund_launch`; a stalled round is aborted after `maxRoundSeconds` and holders `claim_refund`.
+- **Trade fee** 1%, accrued per coin and swept half to the prize pot and half to the treasury at resolve.
+- **Preset deployed (blitz, numbers read as NEAR):** 6 coins, lobby 10,800 s (starts the moment it is full), 1 leveling epoch, epoch spacing 14 s, 2 clashes per epoch, launch fee 0.1, seed fixed at 0.1, `vMon0` 20, `vTok0` 1e9 tokens with 18 decimals.
+
+The parameters come from the Monad economy simulator (`sim/`, report in [`docs/pitch/economy-report.md`](docs/pitch/economy-report.md), `GATE: PASS` for `gamma = 0.88`). The simulator models distributions, not this contract: it is evidence for the parameter choice, not a bit-for-bit check; parity with the contract is proved by the vectors in [section 8](#8-parity-with-the-monad-contracts).
+
+Coins are ledger assets inside the arena contract's multi-token ledger. They are **not** NEP-141 tokens and have no per-coin contract; NEP-245 style views are not implemented yet.
+
+## 4. How it works on NEAR
+
 ```mermaid
 flowchart LR
-  A["1 Arena Spawn<br/>coins launch into a lobby"] --> B["2 PvE Leveling<br/>hunts, xp, levels, open trading"]
-  B --> C["3 Liquidity Merger<br/>loser pool merges into winner"]
-  C --> D["4 The Chosen One<br/>last coin standing, redeem"]
-  A -. "too few coins" .-> X["Aborted<br/>refunds"]
+  subgraph browser["Browser (Vite, React islands, Three.js)"]
+    scene["3D scene + director"]
+    store["ArenaStore + reducers"]
+    burner["Burner key (near-api-js)"]
+  end
+  subgraph host["Keeper host (Node, Hono)"]
+    keeper["Epoch keeper"]
+    relay["Relay: /snapshot /events /stream"]
+    drip["/drip and house coins"]
+  end
+  subgraph near["NEAR testnet"]
+    arena["fera-arena.testnet (Rust, near-sdk)"]
+    helper["testnet helper"]
+  end
+  burner -- "signed calls: launch, buy, sell, redeem" --> arena
+  keeper -- "start_round, lock_epoch, resolve_epoch" --> arena
+  relay -- "events_since, views" --> arena
+  relay -- "SSE" --> store
+  store -- "fallback: RPC views" --> arena
+  drip --> helper
+  burner -- "POST /drip" --> drip
 ```
 
-## 2. System architecture
+**Contract** (`contracts-near/`, Rust, near-sdk 5.30.1). One `Arena` contract holds every round, coin, curve and balance. There is no per-coin contract: balances live in an internal ledger keyed by `(round, account)` with one `u128` per coin slot. Math is in a pure `engine` module with no `near_sdk::env` access, so it runs natively under `cargo test`; `lib.rs`, `round.rs`, `claims.rs` and `store.rs` hold storage, auth, deposits and events. Payouts debit state first, then `Promise::transfer` with a callback; a failed transfer credits `claimable` and the account calls `claim_pending`. Events are emitted as NEP-297 `EVENT_JSON` logs (standard `fera_arena`) and kept in a bounded on-chain ring of 256 entries readable with `events_since(from_seq, limit)`, which the relay and the browser poll.
 
-```mermaid
-flowchart TB
-  subgraph browser["Browser"]
-    scene["3D scene<br/>Three.js r128, extracted prototype"]
-    ui["React islands<br/>launch, trade, claims, demo panel"]
-    store["ChainFeed + ArenaStore + Director"]
-    wallet["Wallet<br/>injected EIP-6963 or burner key"]
-  end
-  subgraph vercel["Vercel static site"]
-    rewrite["rewrite /keeper/* to keeper"]
-  end
-  subgraph deplexo["Deplexo container 128 MiB"]
-    keeper["Keeper bot + HTTP API<br/>Node, Hono, viem"]
-  end
-  subgraph monad["Monad testnet 10143"]
-    arena["Arena.sol"]
-    coins["MonsterCoin ERC-20 clones"]
-    seedsrc["EntropySeedSource"]
-    entropy["Pyth Entropy v2"]
-    rpc["Public RPC<br/>HTTP + WebSocket monadLogs"]
-  end
-  scene --- ui
-  ui --- store
-  store -->|"snapshot + logs"| rpc
-  rpc --- arena
-  ui --> wallet
-  wallet -->|"launch, buy, sell, claim,<br/>createDefaultRound"| arena
-  ui -->|"/keeper/demo/*, /keeper/drip"| rewrite
-  rewrite --> keeper
-  keeper -->|"lockEpoch, resolveEpoch,<br/>startRound, abortRound"| arena
-  arena <-->|"mint, burn"| coins
-  arena -->|"requestSeed"| seedsrc
-  seedsrc -->|"requestV2"| entropy
-  entropy -.->|"callback"| seedsrc
-  seedsrc -.->|"onSeed"| arena
-```
-
-How the pieces divide the work:
-
-| Piece | Responsibility | Trusted for |
-|---|---|---|
-| `Arena` contract | holds all MON, runs the curve, the clashes, the merger, claims | everything that touches money |
-| Pyth Entropy | one random seed per epoch | randomness |
-| Keeper | calls the permissionless epoch functions on time, pays gas, receives a small bounty | liveness only, never fairness |
-| Browser | shows state, sends the player's own transactions | nothing; it can be replaced |
-| Vercel + Deplexo | hosting | availability only |
-
-The keeper cannot change outcomes. `lockEpoch`, `resolveEpoch`, `cancelEpoch`, `startRound` and `abortRound` can be called by anyone; the keeper is just the one that calls them on time.
-
-## 3. Smart contracts
-
-Foundry project in `contracts/`, Solidity 0.8.31 (`evm_version = "osaka"`, no `via_ir`, no `transient` variables except through OpenZeppelin's guard), OpenZeppelin 5.6.1, Solady `FixedPointMathLib.powWad`.
-
-```mermaid
-classDiagram
-  class Arena {
-    +owner
-    +reserveFloor
-    +createDefaultRound() payable
-    +createRound(config) onlyOwner
-    +setDefaultConfig(config) onlyOwner
-    +launchCoin(...) payable
-    +launchCoinWithImage(..., imageUri) payable
-    +startRound(id)
-    +buy(id, coin, minOut, deadline) payable
-    +sell(id, coin, tokens, minOut, deadline)
-    +lockEpoch(id)
-    +onSeed(seedId, seed) seedSourceOnly
-    +resolveEpoch(id, maxClashes)
-    +cancelEpoch(id)
-    +abortRound(id)
-    +claimConsolation(...)
-    +claimSeed(id, coin)
-    +redeem(id, tokens)
-    +claimRefund(...)
-    +refundLaunch(id, coin)
-    +fundTreasury(id) payable
-  }
-  class MonsterCoin {
-    <<ERC-20 clone, ERC-1167>>
-    +initialize(arena, name, symbol)
-    +mint(to, amount) arenaOnly
-    +burn(from, amount) arenaOnly
-  }
-  class ISeedSource {
-    <<interface>>
-    +requestSeed() payable
-    +fee()
-  }
-  class EntropySeedSource
-  class MockSeedSource
-  class CurveMath
-  class CombatMath
-  Arena --> MonsterCoin : clones
-  Arena --> ISeedSource : requests seeds
-  ISeedSource <|.. EntropySeedSource
-  ISeedSource <|.. MockSeedSource
-  Arena ..> CurveMath
-  Arena ..> CombatMath
-```
-
-Key properties of the contract surface:
-
-- **One ledger.** Each coin's pool is a ledger entry inside `Arena`, with virtual reserves (`vMon`, `vTok`) and a real reserve (`rMon`). Tokens are real ERC-20 clones, mint and burn restricted to the Arena.
-- **Permissionless rounds.** `createDefaultRound()` lets any wallet open a new lobby when no round is in progress. The round uses the config the owner stored with `setDefaultConfig`. A caller-supplied config would let an attacker set a huge `keeperBounty` and drain the treasury that carries over between rounds, so only the owner can create a custom round.
-- **No owner powers over funds.** The owner sets the default config and the seed source once. There is no withdrawal path and no upgrade proxy.
-- **Pull payments with explicit limits.** Every trade needs a non-zero `minOut` and a `deadline`; payouts go through one guarded helper that keeps the balance at or above `reserveFloor`.
-- **Events carry the full post-state** so a client can mirror the chain from events alone (56 custom errors, 25 events).
-
-Events: `RoundCreated`, `CoinLaunched`, `CoinImage`, `RoundStarted`, `Trade`, `EpochLocked`, `SeedReady`, `EpochResolved`, `ClashResolved`, `Boosted`, `CoinEliminated`, `ByeGranted`, `HuntResolved`, `LevelUp`, `EpochCancelled`, `RoundSettled`, `RoundAborted`, `CoinRefundRate`, `ConsolationClaimed`, `SeedClaimed`, `Redeemed`, `RefundClaimed`, `TreasuryFunded`, `TreasurySpent`, `FeesSwept`.
-
-Tests: 127 forge tests including fuzz tests and a stateful invariant campaign (solvency `balance >= liabilities`, conservation, no stuck funds), plus named tests for the red-team cases in [section 7](#7-fairness-and-attack-surface).
-
-## 4. Round lifecycle
-
-```mermaid
-stateDiagram-v2
-  [*] --> None
-  None --> Lobby: createDefaultRound or createRound
-  Lobby --> Leveling: startRound<br/>lobby full, or deadline with minCoins reached
-  Lobby --> Aborted: abortRound<br/>deadline passed with too few coins
-  Leveling --> Knockout: levelingEpochs resolved
-  Knockout --> Settled: one coin left
-  Leveling --> Aborted: abortRound<br/>3 cancels in a row or maxRoundSeconds
-  Knockout --> Aborted: abortRound<br/>3 cancels in a row or maxRoundSeconds
-  Settled --> None: next round can be created
-  Aborted --> None: next round can be created
-```
-
-- **Lobby.** Players launch coins (cap two per address). `startRound` needs the lobby full or the deadline reached with at least `minCoins`, and a treasury that covers `reserveFloor + plannedEpochs * maxEntropyFee`. If the lobby never fills, `abortRound` becomes callable and every launch can be refunded with `refundLaunch`.
-- **Leveling epochs.** Hunts only: no clashes and no eliminations. Trading reopens after each resolve.
-- **Knockout epochs.** Pairing and clashes. Coins left out by the per-epoch clash cap get a bye.
-- **Settled / Aborted.** Claims stay open forever. A new round carries leftover treasury over to the next round.
-
-## 5. One epoch, step by step
+**Epoch cycle.**
 
 ```mermaid
 sequenceDiagram
-  participant K as Keeper
-  participant A as Arena
-  participant S as EntropySeedSource
-  participant E as Pyth Entropy
-  participant P as Players
-  Note over A: Open: players may buy and sell
-  K->>A: lockEpoch(roundId)  after epochSeconds
-  A->>A: freeze every alive coin, snapshot reserves
-  A->>S: requestSeed (fee paid from treasury)
-  S->>E: requestV2
-  Note over P,A: Locked: buy and sell revert
-  E-->>S: callback with random seed
-  S-->>A: onSeed(seedId, seed)
-  K->>A: resolveEpoch(roundId, maxClashes)
-  A->>A: pair coins from the new seed
-  A->>A: roll each clash, merge the loser
-  A->>A: roll hunts, award xp and levels
-  A->>A: unlock, sweep fees, pay bounty to caller
+  participant K as Keeper (anyone can do this)
+  participant A as Arena contract
+  participant P as Players (burner keys)
+  Note over A: Open: players buy and sell
+  K->>A: lock_epoch(round), after epochSeconds
+  A->>A: freeze every alive coin, snapshot reserves, store lockHeight
+  Note over P,A: Locked: buy and sell panic with ArenaError:Locked
+  K->>A: resolve_epoch(round, max_clashes), at least minSeedBlocks (3) blocks later
+  A->>A: first call: seed = sha256(random_seed, round, epoch, lockHeight, block_height)
+  A->>A: pair coins, roll clashes, merge losers, roll hunts, sweep fees, settle if one is left
   Note over A: Open again
-  alt seed does not arrive in seedTimeoutSeconds
-    K->>A: cancelEpoch (no bounty, at most 3 in a row)
-  end
 ```
 
-Why the order matters:
+`resolve_epoch` can be called in batches (`max_clashes`); the first call fixes the seed and the epoch stays locked until the last clash and the hunts are done. Every draw is a pure function of `(seed, alive mask, domain tag, index)`, so any batch size gives the same result. There is no cancel path: because the seed comes from the chain itself and not from an oracle, it can always be read three blocks after the lock.
 
-1. All coins are frozen **before** the seed is requested, so nobody can trade after seeing the pairing.
-2. Odds are computed from numbers that were public and frozen at the lock.
-3. Pairing is derived from the new seed inside the same transaction that applies the results, so the bracket cannot be known one epoch early.
-4. A batched `resolveEpoch` gives identical results for any `maxClashes`, because every draw is a pure function of `(seed, aliveMask, domain tag, id)`.
+**Keeper** (`keeper/`). One Node process drives `start_round`, `lock_epoch`, `resolve_epoch` and `abort_round`, and serves the read relay. It has no discretion over outcomes; every call it makes can be made by anybody, and a call someone else already made panics with a named `ArenaError:<Name>` that the keeper treats as a skip. It also serves `POST /drip` and the demo routes (`create-round`, `seed-house`), which are mounted only when their secrets are configured.
 
-## 6. Economy and mechanics
+**Burner wallet and zero popups.** The browser generates an ed25519 key, the keeper funds the new account (the testnet helper first, a drip sub-account as fallback), and the page signs every call locally with `near-api-js`. A visitor never sees a wallet popup, a seed phrase or a gas prompt. The key lives in `localStorage`, which is acceptable for testnet play money only. A real wallet connection is not built: function-call keys cannot attach a deposit, so payable calls would still prompt.
 
-### 6.1 Bonding curve (per coin)
+**Events and the browser.** `shared/` turns on-chain events (via the relay, or via RPC views as a fallback) into the same event envelopes the Monad version used, so the 3D director and reducers are unchanged. The scene in `web/src/arena/` is untouched by the port.
 
-Constant-product curve with virtual reserves. `k = vMon * vTok` is always read from current state, never cached.
+## 5. Fairness and trust
 
-| Operation | Formula |
+| Property | How it holds |
 |---|---|
-| buy `in` | `in' = in * (1 - fee)`; `out = vTok - ceil(k / (vMon + in'))`; `vMon += in'`, `vTok -= out`, `rMon += in'` |
-| sell `t` | `gross = vMon - ceil(k / (vTok + t))`; `out = gross * (1 - fee)`; `vMon -= gross`, `vTok += t`, `rMon -= gross` |
-| boost `X` (merger) | `k = vMon * vTok; vMon += X; rMon += X; vTok = ceil(k / vMon)` |
+| Odds are frozen before the seed exists | `lock_epoch` snapshots `rMonAtLock`, levels and the alive set; trades revert while locked. Clash odds only use those snapshotted numbers |
+| The bracket cannot be known early | Pairing is derived from the new seed inside `resolve_epoch`, the same transaction that applies the results |
+| The seed is not chosen by the keeper | The seed is `sha256(random_seed ‖ round ‖ epoch ‖ lockHeight ‖ block_height)`, where `random_seed` is the NEAR block randomness of the block that executes the first `resolve_epoch`, which the contract only accepts at least `minSeedBlocks` (3) blocks after `lock_epoch` |
+| Draws are domain separated | Every draw is `keccak256(seed ‖ tag ‖ index)` over 96 bytes with tags `PAIR`, `CLASH`, `HUNT`, bit-identical to the Monad contract (proved by the vectors) |
+| Liveness | Every lifecycle method is permissionless, so a keeper outage only delays epochs; the keeper's own gas is its only privilege |
+| Solvency | Payouts are refused unless the contract balance covers its NEAR storage cost plus recorded liabilities (`ArenaError:StorageFloorBreached`); 1,000 random scripts of trades and epochs are checked for supply conservation and solvency |
 
-Rounding always favours the pool. Trade fee is 1 percent; it accrues per coin and is swept half to the prize pot and half to the treasury at resolve, so trades never write a shared hot slot.
+**What this does not give you, stated plainly.** The seed uses NEAR's block randomness, which is produced by the validator that makes the block. A block producer who is also a player can see that block's `random_seed` before it is published and can choose not to produce the block (a validator-skip), and the party that sends the first `resolve_epoch` chooses roughly which block executes it. The `minSeedBlocks` delay means nobody can know the seed at lock time, but it does not remove that residual influence. At hackathon scale (testnet, play money) the cost of such an attack exceeds its reward and it is accepted; it is not acceptable for real value. Named upgrades, none built: commit-reveal mixed in by the keeper so a single validator cannot decide the outcome, and a verifiable randomness service for mainnet.
 
-The boost is a **virtual buy-and-burn**: it raises the price by shrinking `vTok`. A plain reserve injection would let a bot sell one wei right after a merge and take the whole bonus. With the buy-and-burn the identity holds exactly and a 1-wei seller captures about 0.000 percent of the boost.
+## 6. No admin key, Sybil and storage notes
 
-### 6.2 Creator seed
+- **No admin key in the contract.** The round config is immutable and set once in `init`; there is no owner, no `set_config`, no treasury withdrawal and no pause. Creating a round, starting it and every epoch call are open to everyone. The treasury only ever pays out through the claim paths.
+- **The deployer's access key is still on the testnet account.** At the time of writing `fera-arena.testnet` still carries a full-access key (a chain query of `view_access_key_list` shows one), so the deployer could redeploy or move funds. For a mainnet deployment the contract account must have its keys deleted so that the code is locked; that has not been done and is not claimed here.
+- **A test-only seed override** exists behind the cargo feature `replay` (a stored `TESTSEED` read in `resolve_epoch`). It is compiled in only by the test replay of the Solidity scenarios, is not a default feature, and is not in the deployed build (the wasm recorded in the deployment file is built without it).
+- **Sybil and storage.** Each new account that buys a coin adds one ledger record of about 200 bytes; at NEAR's storage price of 1e19 yoctoNEAR per byte that is about 0.002 NEAR, which the arena pays from its own balance. The contract refuses payouts that would take its balance below `storage cost + liabilities`, and the testnet arena is funded with a reserve for that. Many cheap accounts can therefore slowly consume the reserve, and one actor with many accounts can fill a 6-coin lobby with its own coins (the cap of two coins per account is per account, not per person). Testnet account creation is free, so this is not mitigated here; a mainnet version would need an entry deposit that covers the record, or a per-person gate.
+- **Demo routes spend testnet funds.** `/drip` and the house-coin routes spend testnet NEAR of the keeper's own accounts and are rate limited; the demo token in a hosted build is not a secret. None of this touches the contract.
 
-A launch sends `launchFee + seed`. The fee goes to the treasury. The seed buys tokens held by the Arena until the coin is eliminated, the round settles or the round aborts. Seed tokens cannot be sold, and the creator takes them at a fixed rate through `claimSeed`. This blocks "ghost coins" that launch tiny, farm odds and pull the seed back.
+## 7. Measured numbers
 
-### 6.3 Combat odds
+From [`deployments/near-testnet.json`](deployments/near-testnet.json) (testnet, deployed 2026-11-10 08:47 UTC at height 277044834, wasm 264,278 bytes, sha256 `cfd64765850191633d569d7332f77e56203e11f22f116ba3673eae7e82762d11`):
 
-```
-power(i, j) = baseStat[type_i]
-            * (1 + levelBonus * (level_i - 1))
-            * elementMult(type_i, type_j)
-            * clamp((rMonAtLock_i / meanRMonAlive) ^ gamma, poolFactorMin, poolFactorMax)
-
-winProb(A) = clamp(powerA / (powerA + powerB), winProbMin, winProbMax)
-roll       = uint(keccak(seed, "CLASH", clashId)) % 10000
-A wins iff   roll < winProbBps(A)
-```
-
-- Five monster types: Fire Dragon, Ice Wolf, Earth Golem, Electric Fox, Dark Spirit, with an element advantage table (`elementUp` 1.15, `elementDown` 0.87).
-- `gamma = 0.88`. The economy simulator found that 0.85 left the smallest pools slightly profitable and 0.88 keeps every pool size within the target return band (0.85 to 0.99 per MON staked).
-- Win probability is clamped to 15 to 85 percent, so a larger pool helps without deciding the game.
-- Pairing is a Fisher-Yates permutation over the alive set locked in `aliveMask`, driven by `keccak(seed, "PAIR")`. An odd coin out gets a bye. At most `clashesPerEpoch` pairs per epoch.
-
-### 6.4 Hunts and levels
-
-Every alive coin hunts each epoch: `uint(keccak(seed, "HUNT", coinId)) % 100 < huntWinPct` (50) gives xp, a clash win gives more. Level is a lookup on xp thresholds (1 to 10) and adds a small bonus to `power`. Hunts happen on-chain as rolls and events; monsters, positions and strike animations are replayed in the browser from those events.
-
-### 6.5 The liquidity merger
-
-When coin L loses to coin W, L's reserve `R` is split by basis points:
-
-```mermaid
-flowchart LR
-  R["Loser reserve R"] --> B["50% boost<br/>virtual buy-and-burn on the winner's curve"]
-  R --> C["30% consolation<br/>fixed rate for the loser's holders"]
-  R --> P["15% prize pot<br/>paid to the Chosen One's holders"]
-  R --> T["5% treasury<br/>pays seed fees and keeper bounties"]
-  B --> W["Winner coin: higher price,<br/>its holders gain"]
-  C --> H["claimConsolation<br/>burn loser tokens for MON"]
-```
-
-- Consolation is fixed at elimination (`consolationPool`, `consolationSupply`) and never divides by a live `totalSupply()`, so claims are order-independent and cannot be gamed.
-- `consolationMode = 1` spreads the consolation share into the surviving coins' curves instead of paying holders (a config switch, off by default).
-- The loser's `rMon` becomes 0 at `CoinEliminated`.
-
-### 6.6 Settlement, aborts and claims
-
-| Outcome | What holders do | Rate |
+| Method | Prepaid gas used by the clients | Gas burnt, measured on testnet (Tgas, all receipts) |
 |---|---|---|
-| Round settled | winner's holders `redeem` | `(rMon + prizePot) / supply`, fixed at settlement |
-| Coin eliminated | loser's holders `claimConsolation` | fixed consolation rate |
-| Creator of any coin | `claimSeed` | fixed seed rate |
-| Round aborted in Lobby | `refundLaunch` | launch value back |
-| Round aborted mid-round | `claimRefund` | pro-rata rate, prize pot returned inside the rates |
+| `create_round` | 30 | 2.76 |
+| `launch_coin` | 30 | 2.74 |
+| `start_round` | 30 | 2.54 |
+| `buy` | 30 | 2.90 |
+| `sell` | 30 | 5.70 |
+| `lock_epoch` | 30 | 2.57 |
+| `resolve_epoch` | 100 | 6.88 (the worst epoch of a 6-coin round: 6 alive coins, 2 clashes, 4 hunts) |
+| `redeem` | 30 | 5.56 |
+| `claim_seed` | 30 | 5.40 |
 
-### 6.7 Treasury, bounty, reserve floor
+Epoch timings from the keeper's end-to-end run on testnet (the keeper logs `secondsLockToResolved` for every epoch): lock to resolve **4 to 7 s**, lock to the next lock **about 18 to 19 s**, and a 6-coin round **well under two minutes** from the full lobby to the settled round.
 
-- The treasury is funded by launch fees, the merger's 5 percent, swept trade fees, optional deposits through `createDefaultRound{value}` and `fundTreasury`, and any carry-over from the previous round.
-- It pays the Entropy seed fee (`TreasurySpent` with kind `SeedFee`) and the keeper bounty at the end of each `resolveEpoch`.
-- `reserveFloor` (constructor argument; `0` on the current testnet deploy) keeps a standing balance that payouts can never drain. A testnet check showed the Monad reserve-balance rule does not apply to contract accounts, so the floor is set to 0.
+On-chain state read through the public RPC on 2026-11-10 at about 09:50 UTC (these numbers move while the keeper keeps playing): the account's code hash equals the recorded wasm hash, `current_round_id` is 5 with rounds 1 to 4 `Settled` after 4 epochs each and 5 clashes each, and the contract account held about 30.67 NEAR with 330,650 bytes of storage.
 
-### 6.8 Presets
+## 8. Parity with the Monad contracts
 
-`createDefaultRound` uses the config stored by the owner. The testnet deployment stores the **blitz** preset, a two-minute demo round; **lite**, **demo** and **standard** are in `contracts/script/Presets.sol` and `docs/handoffs/contracts.md`.
+The Rust engine reproduces the Solidity libraries (`CurveMath`, `CombatMath`, including Solady's `powWad`) bit for bit, proved with golden vectors generated from the real Solidity at the `monad-final` tag with Foundry (`near-parity/`):
 
-| Parameter | blitz (deployed default) | lite | demo | standard |
-|---|---|---|---|---|
-| Coins max / min | 6 / 6 | 6 / 5 | 30 / 8 | 30 / 12 |
-| Lobby | 3 h (10800 s), starts as soon as it is full (6 coins) | 3600 s | 120 s | 900 s |
-| Leveling epochs | 1 | 3 | 3 | 10 |
-| Epoch spacing | 14 s | 30 s | 20 s | 60 s |
-| Clashes per epoch | 2 | 3 | 6 | 4 |
-| Launch fee | 0.1 MON | 0.1 MON | 1 MON | 5 MON |
-| Seed range | fixed 0.1 MON | 0.2 to 5 MON | 2 to 50 MON | 10 to 500 MON |
-| Keeper bounty / max Entropy fee | 0.02 / 0.2 MON | 0.02 / 0.2 MON | 0.2 / 1 MON | 1 / 10 MON |
-| Merger split boost / consolation / pot / treasury | 50 / 30 / 15 / 5 | same | same | same |
-| Trade fee | 1 percent | 1 percent | 1 percent | 1 percent |
-| Curve | `vMon0` 20 MON, `vTok0` 1e9 tokens | same | same | same |
-
-Every blitz coin is seeded with exactly 0.1 MON (`minSeed` equals `maxSeed`), so house coins and player coins start on the same footing and a lobby fills cheaply. A blitz round is about four epochs (one leveling, three knockout) of 14 s plus the Entropy wait of about 4 to 5 s, so each epoch takes roughly 18 to 19 s (the first leveling epoch about a second longer) and a round takes about 75 seconds from the last coin to the Chosen One. With the earlier 8 s spacing the live deployment measured 49 s and 42 s over two rounds; the 14 s figure is calculated from that, not yet measured. Seeding five house coins from the demo panel adds about 12 s. Fewer than five coins or more than `maxCoins / 2` clashes per epoch is rejected by the contract.
-
-`docs/pitch/economy-report.md` is the simulator's verdict and the source for parameter changes. It ends in `GATE: PASS` for `gamma = 0.88` and records the findings that remain open (a small-pool premium below 0.25x of the mean pool, and the creator-seed edge at `vMon0 = 20 MON`).
-
-## 7. Fairness and attack surface
-
-| Risk | Mitigation | Evidence |
+| File | Content | Size |
 |---|---|---|
-| Sandwiching the merger boost | boost is a virtual buy-and-burn; all alive coins are locked between the lock and the resolve | `test_T1_oneWeiSellAfterBoost` (fuzzed), simulator check |
-| Ghost coins (tiny pool, farm odds, pull the seed) | creator seed is locked and not sellable; pool factor exponent below 1 and clamped | `test_T2_ghostCoinCannotUnlockSeed`, EV table 0.91 to 0.98 |
-| Public bracket one epoch early | pairing derived from the new seed at resolve | `test_T4_pairingUnknowableBeforeResolve`, bye-coin edge within 5 percent |
-| Trading after seeing the seed | trades revert while locked | `test_T4_noTradeWhileLocked` |
-| Hostile round config draining the treasury | only the owner can supply a config; public creation uses the stored default | `PublicRound.t.sol` |
-| Reentrancy on payouts | `ReentrancyGuardTransient`, checks-effects-interactions, one guarded payout helper | `Reentrancy.t.sol` |
-| Insolvency | liabilities counted from counters, `balance >= liabilities` after every external call | stateful invariant campaign |
-| Stuck funds | `resolveEpoch` never reverts on data; `abortRound` and refunds always exist | invariants, abort tests |
-| Seed never arrives | `cancelEpoch` after `seedTimeoutSeconds`, at most 3 in a row, then `abortRound` | epoch tests |
-| Keeper downtime | every epoch function is permissionless | tests, runbook |
-| Malicious token images | length cap 16 KiB, scheme allow-list on chain; strict validation and `<img>` only in the browser | `Image.t.sol`, `coinImage.test.ts` |
+| [`near-parity/curve.json`](near-parity/curve.json) | 6,100 rows (5,000 random plus edges and composites such as zero reserves, 1 wei, `out == 0`, a `vMon * vTok` product at 2^256, buy and sell quotes, merger split, launch seed); 6,037 values and 63 expected reverts | 1.2 MB |
+| [`near-parity/combat.json`](near-parity/combat.json) | 11,349 rows: `pool_factor_wad`, `power`, `win_prob_bps`, `pairing` (96-byte hash input), `clash_roll`, `hunt_roll`, `element_bps`, `level_from_xp`, with clamps, level and element matchups, zero pool, maximum pool factor, rounding boundaries; 11,341 values and 8 expected reverts | 3.0 MB |
+| [`near-parity/scenario.json`](near-parity/scenario.json) | 258 steps in 6 scenarios driven through the real Solidity `Arena`: 6-coin and 5-coin rounds, a clash won by the lower-power coin, hunts and level ups, a batched resolve, a lobby abort with refunds, settle, redeem and consolation and seed claims, with the full state after every step | 1.1 MB |
 
-Known limits: randomness comes from one provider (Pyth Entropy) and its provider could re-roll; that is accepted on testnet and is a gate before any mainnet use. The code has not been audited.
+- **`pool_factor_wad` is bit-exact.** [`contracts-near/tests/vectors.rs`](contracts-near/tests/vectors.rs) asserts string equality on the output of every `pool_factor_wad` row, as on every other row; `tests/replay.rs` replays all 258 scenario steps against the Solidity results; `tests/invariants.rs` runs 1,000 random scripts; `tests/scenario.rs` covers error names, the failed-payout path, aborts and the event ring.
+- **Independent cross-checks inside the generators.** Every non-reverting curve row matches `shared/src/curve.ts`; pairings, clash and hunt rolls and the bye coin are recomputed from the seed with a separate keccak implementation; the combat pool factor is also compared against double-precision `Math.pow` (largest relative difference 3.7e-16). The generators fail on the first mismatch.
+- Regenerate with `bash near-parity/run.sh curve|combat|scenario|all`. The scripts build under `$HOME/.cache/animal-parity-forge` and read `contracts/src` and `contracts/lib`, which is git-ignored: install it as the Monad README describes (`forge install --no-git`: OpenZeppelin v5.6.1, forge-std v1.17.0, Solady v0.1.26, Pyth Entropy SDK 2.2.1).
 
-## 8. Client data flow
+## 9. Baseline and hackathon work
 
-```mermaid
-flowchart LR
-  subgraph rpc["Monad RPC"]
-    mc["Multicall3 at finalized tag"]
-    ws["WebSocket monadLogs"]
-    logs["eth_getLogs 100 block pages"]
-  end
-  mc -->|"snapshot: config, round, coins"| feed["ChainFeed"]
-  ws -->|"live events with commitState"| feed
-  logs -->|"backfill after base block<br/>and CoinImage before it"| feed
-  feed -->|"envelopes"| store["ArenaStore<br/>persisted = Finalized only<br/>optimistic = Proposed + Voted + Finalized"]
-  store --> director["Director<br/>ordering, animation plans"]
-  director -->|"bridge"| scene["3D scene"]
-  store --> islands["React islands"]
-  islands -->|"transactions"| wallet["Wallet"]
-```
+The Monad version of FERA.FUN (Solidity contracts, keeper, 3D scene, economy simulator, testnet and a showcase mainnet deployment) existed before the hackathon and is the **baseline**. All 30 baseline commits are on the tag `monad-final` (last baseline commit `49ac30e`; the `?cam=iso` camera flag of the 3D scene was committed on `monad-archive` just before tagging, so the baseline already contains it). Nothing in `contracts/`, `sim/` or `web/src/arena/` has changed since.
 
-- **Snapshot.** One Multicall3 `aggregate3` at the `finalized` tag returns the block number, timestamp, config, round and coin views. The base block is read in the same call, so state and block are atomic.
-- **Live feed.** A WebSocket subscription to `monadLogs` gives each event with a `blockId` and `commitState` (`Proposed`, `Voted`, `Finalized`). Falls back to polling.
-- **Backfill.** `eth_getLogs` is limited to 100 blocks per call on the public RPC, so logs are fetched in pages of 100 with at most 5 in flight. A forked block that loses to a finalized sibling is retracted.
-- **Images.** `CoinImage` events can be older than the snapshot base, so they are backfilled separately from an estimated start block.
-- **Two views of state.** `persisted` changes only on finalized events and drives numbers that must be right (claims, balances). `optimistic` includes unfinalized events and drives instant feedback.
-- **Director.** Plays animations in event order and holds a clash until its predecessor finished; a safety timeout (15 s for a clash, 12 s for the finale) guarantees the Chosen One screen always opens. When a round changes, the scene resets and the director rehydrates.
-- **Round following.** The app reads `currentRoundId()` and polls it every 3 s; a `RoundCreated` event also triggers the switch, so no redeploy is needed between rounds.
-- **Commit states and UX.** A trade shows immediately as pending, clash and lock animations play once the block is voted, and claims enable when finalized (about 600 ms on Monad).
+Work judged here, from `git diff monad-final near` (about 150 files and 34,600 added lines before this README): [`monad-final...near`](https://github.com/Candra0x6/fera.fun/compare/monad-final...near), published as `monad-final...near-submission` at the freeze.
 
-Web modes (query string):
-
-| Query | Mode |
+| New NEAR modules | What |
 |---|---|
-| none | live chain mode |
-| `?demo` | live chain mode plus the demo controls panel |
-| `?replay=fixture` (`&speed=4`) | plays `shared/fixtures/arena-replay.json`, no chain, no wallet |
-| `?replay=stress&coins=30` | synthetic coins for frame-rate checks |
-| `?sim=1` | the original local prototype simulation |
-| `&debug=1` | shows the FPS cell |
+| `contracts-near/` | The Arena as a Rust near-sdk contract: engine, rounds, ledger, claims, aborts, event ring, tests |
+| `near-parity/` | Foundry harnesses and generators, the three golden vector files |
+| `keeper/src/nearPort.ts`, `nearTransport.ts`, `nearAccounts.ts`, `helper.ts`, `houseKeys.ts`, `rpcReads.ts`, `snapshotRefresh.ts` | NEAR keeper port, failover RPC, drip, house coins |
+| `shared/src/nearFeed.ts`, `nearRpc.ts`, `nearDecode.ts`, `nearFixture.ts` | NEAR event feed and decoders, replay fixture |
+| `web/src/chain/nearBurner.ts`, `nearSigner.ts`, `nearKeys.ts`, `arenaCalls.ts`, `relayFeed.ts` | Burner wallet, signing, contract calls, relay feed |
+| `deployments/near-testnet.json`, `scripts/near-keeper.sh`, `vercel.json`, `Dockerfile.keeper` | Deployment record and hosting configuration (Railway keeper, Vercel web; hosting not yet live) |
 
-## 9. Token images
+Existing Monad files edited in place on this branch (for example `keeper/src/loop.ts`, `shared/src/types.ts`, `web/src/chain/*.ts`, the islands) keep their originals in the tag. The Monad Solidity contracts, tests and scripts remain in `contracts/` untouched and are not part of the NEAR runtime. The Monad contracts are on Monad testnet (chain id 10143) and, as a showcase only, on Monad mainnet (chain id 143, no round open); their addresses are in `deployments/10143.json` and `deployments/143.json`. That mainnet deployment is history, is not part of this submission and does not run the NEAR game.
 
-Pump.fun style: pick an image when launching a coin and it appears on the coin's 3D label, in the leaderboard, in the inspector and on the Chosen One screen.
+## 10. Repository layout
 
-```mermaid
-sequenceDiagram
-  participant U as Player
-  participant W as Launch dialog
-  participant A as Arena
-  participant F as ChainFeed
-  participant S as Scene and UI
-  U->>W: choose PNG, JPEG, WebP or GIF (max 5 MB, no SVG)
-  W->>W: crop to 128x128, encode WebP or JPEG, fit under 12000 chars
-  W->>A: launchCoinWithImage(..., data URI)
-  A->>A: check length <= 16 KiB and scheme data:image/, ipfs://, https://
-  A-->>F: CoinLaunched + CoinImage events
-  F->>F: backfill older CoinImage logs, buffer if image precedes launch
-  F-->>S: CoinView.imageUri
-  S->>S: validate again, render with an img tag only
+```
+contracts-near/        Rust near-sdk Arena contract and tests (new)
+  src/engine/          pure curve, combat and fixed-point math (bit-exact with Solidity)
+  src/lib.rs round.rs claims.rs base.rs store.rs views.rs types.rs errors.rs
+  tests/               vectors, replay of scenario.json, scenario, invariants
+near-parity/           golden vectors and their generators (new)
+  curve.json combat.json scenario.json, gen/ (TypeScript), forge/ (Foundry harnesses), run.sh
+keeper/                Node keeper, relay, drip and demo routes (NEAR port of the Monad keeper)
+shared/                event types, reducers, NEAR feed and RPC, replay fixtures
+web/                   Vite + React islands + Three.js arena; src/chain is the NEAR layer
+deployments/           near-testnet.json (new); 10143, 143, 31337 are Monad records
+scripts/               near-keeper.sh runs the keeper from keys kept outside the repo
+contracts/             Monad Solidity baseline, unchanged (also the source of the parity vectors)
+sim/                   Monad economy simulator, unchanged
+docs/pitch/            economy report, product copy, and the hackathon submission drafts
+docs/research/near/    short research notes written during the port
 ```
 
-No server and no hosting key is needed: the image travels in the transaction and lives in the event log. A plain `launchCoin` (house coins) has no image and the UI falls back to the monster icon.
+## 11. Disclosures: libraries and AI-generated code
 
-## 10. Keeper and services
+**AI-generated code.** The code in this repository was written by AI coding agents (Claude Code, Anthropic Claude models), working to written role briefs and run by the team lead, in both the Monad baseline and the NEAR work. The commits are authored under the lead's git identity and carry no AI trailer, so this section is the record. For the hackathon window (`git diff monad-final near`, about 150 files), the AI-written files are:
 
-The keeper (`keeper/`) is a small Node service. It bundles into one 2 MB file with esbuild and runs with a 96 MiB Node heap limit; measured under a 128 MiB container limit it used about 54 MiB right after start and stayed near 110 MiB (as reported by `docker stats`, which may include cache) over two minutes, which is why it fits Deplexo's 128 MiB free plan with little headroom.
-
-```mermaid
-flowchart TB
-  tick["Round loop tick"] --> read["Read round state"]
-  read --> phase{"phase"}
-  phase -->|"Lobby, full or deadline"| start["startRound"]
-  phase -->|"Lobby, deadline, too few coins"| abort["abortRound"]
-  phase -->|"Open and epochSeconds elapsed"| lock["lockEpoch"]
-  phase -->|"Locked and seed arrived"| resolve["resolveEpoch (batched)"]
-  phase -->|"Locked and seed late"| cancel["cancelEpoch after timeout"]
-  phase -->|"Settled or Aborted"| done["round loop finished,<br/>follow the next round"]
-```
-
-- One transaction in flight at a time, explicit gas limits from `contracts/GAS.md` plus headroom, restart-safe (it re-reads state each tick and never double-locks).
-- It follows `currentRoundId()`; when the id changes it rebinds the feed and the relay.
-- Logs scrub every configured key and mnemonic.
-
-HTTP API:
-
-| Route | Purpose |
-|---|---|
-| `GET /healthz` | `{ ok, headBlock, lagSeconds, keeperAddress, roundId, round }`; 503 until a round is hydrated or when the feed lags more than 5 s |
-| `POST /drip` | testnet faucet for burner wallets, rate limited per address and per IP |
-| `GET /snapshot`, `GET /events`, `GET /stream` | optional relay (snapshot, buffered envelopes, SSE) |
-| `GET /demo/status` | lobby state, flags `canCreate` and `canSeed`, balances |
-| `POST /demo/create-round` | recycles funds of the ended round, calls `createDefaultRound` with the treasury top-up |
-| `POST /demo/seed-house` | launches up to 5 house coins into the lobby |
-
-The `/demo/*` routes exist only when `DEMO_ADMIN_TOKEN` is set, need the `x-demo-token` header (constant-time compare), are rate limited and run one operation at a time.
-
-## 11. Deployment topology
-
-```mermaid
-flowchart LR
-  dev["Developer laptop"] -->|"vite build, vercel deploy --prebuilt"| vercel["Vercel<br/>static site + /keeper rewrite"]
-  dev -->|"ZIP upload via Deplexo API"| deplexo["Deplexo<br/>Docker build, keeper container"]
-  dev -->|"forge script with a Foundry keystore"| monad["Monad testnet<br/>Arena, MonsterCoin, seed source"]
-  user["Player browser"] --> vercel
-  vercel -->|"/keeper/*"| deplexo
-  user -->|"RPC, WebSocket, wallet tx"| monad
-  deplexo -->|"keeper txs"| monad
-  monad --> entropy["Pyth Entropy"]
-```
-
-- **Web:** a static Vite build uploaded to Vercel as prebuilt output. `/keeper/*` is rewritten to the keeper, so the browser only talks to one origin and no CORS configuration is needed.
-- **Keeper:** `Dockerfile.keeper` is a two-stage build (esbuild bundle, then a slim runtime image, read-only root, non-root user) described by `deplexo.yaml`. The source goes up as a ZIP through Deplexo's API, so no Git repository access is needed.
-- **Contracts:** deployed with `forge script` and a Foundry keystore; addresses are recorded in `deployments/10143.json`.
-- **Secrets:** never in the repository. Keys live in `.env.local` (git-ignored) and in the hosting platforms' environment variables.
-- **Limits worth knowing:** Deplexo's free plan is one app with 128 MiB RAM and 0.25 CPU, and its build queue sometimes rejects deploys with "server capacity is temporarily unavailable"; a retry works. Any 5xx from a Deplexo app is shown as an "App unavailable" page.
-
-### Current deployment
-
-Everything below was deployed fresh in one migration (new contracts, new keys, new hosting configuration). Only public addresses are listed.
-
-| Piece | Where | Detail |
+| Path | Files | Notes |
 |---|---|---|
-| Contracts | Monad testnet (10143) | Arena `0xb88E9941262ACE4852A5389f674Cc48558751C83`, EntropySeedSource `0xa573D315d201d7BbdC405E5b26dC9eC9B6EFfF80`, coin implementation `0x91d9D86D133f107A4F86E7BA71BF0049E27ACF54`, deploy block 73723341, default config **blitz** |
-| Web | Vercel project `fera-fun` | https://fera-fun.vercel.app, prebuilt static output, `/keeper/*` rewritten to the keeper |
-| Keeper | Deplexo app `fera-keeper` | https://fera-keeper.de.deplexo.com, `Dockerfile.keeper`, free plan (128 MiB, 0.25 CPU) |
-| Entropy | Pyth on Monad testnet | contract `0x825c0390f379C631f3Cf11A82a37D20BddF93c07`, provider `0x6CC14824Ea2918f5De5C2f75A9Da968ad4BD6344` |
+| `contracts-near/**` | 21 | whole contract, engine, tests (Cargo.lock generated by cargo) |
+| `near-parity/**` | 15 | harnesses, generators, run script; the three vector files are generator output |
+| `keeper/**` | 44 (17 new, 27 edited) | NEAR port, drip, house coins, relay refresh, Railway config, tests |
+| `shared/**` | 24 (11 new, 13 edited) | NEAR feed, RPC client, decoders, fixture generator and tests |
+| `web/**` | 40 (8 new, 32 edited) | burner wallet, signing, contract calls, relay feed, island and copy edits, tests |
+| `deployments/near-testnet.json`, `scripts/near-keeper.sh`, `vercel.json`, `Dockerfile.keeper`, `.env.example`, `pnpm-lock.yaml` | 6 | config; the lockfile is generated by pnpm |
+| `docs/research/near/**` (2), `README.md`, `docs/pitch/near-submission.md` | 4 | research notes and the submission texts |
 
-| Wallet | Address | Role | Funding guide |
-|---|---|---|---|
-| Deployer / owner | `0x331DE811fb1168A6F0AA3967591B8ecB79a30036` | deploys, owns the Arena, `setDefaultConfig` | about 1.5 MON of gas plus the 10 MON reserve floor for a deploy |
-| Keeper | `0xFaf5775e91d5c48f88E5312146eACb2c723288d9` | locks, resolves and settles epochs, aborts underfilled lobbies | keep at least 10 MON (Monad reserve) plus gas |
-| Drip | `0x4B8d4F8986bfCFa2D051580a15f597e08901E7F0` | faucet for visitors, `DRIP_AMOUNT_MON` each | 1 MON per visitor |
-| Seeder | `0x2e31A761A02ce7D8Fb9C929C63aa6AB2693e6F7c` | creates lobbies and seeds house coins from the demo panel | about 1 MON per demo round |
+Not changed in the window: `contracts/**` (Solidity baseline), `sim/**`, `web/src/arena/**` (the 3D scene extracted from a pre-existing Three.js prototype). The Monad baseline files were also produced with agents; the Monad role briefs are in `docs/handoffs/`.
 
-The Arena holds a 10 MON reserve floor in its treasury. It carries over from round to round and cannot be taken out.
+**Libraries and boilerplate** (all open source, none vendored except as noted): Rust `near-sdk` 5.30.1 and `uint` 0.10.2 (256-bit integers); TypeScript `near-api-js` 7.4.0, `react` and `react-dom` 19.3.1, `three` 0.128.0, `hono` 4.13.13 with `@hono/node-server` 2.1.5, `pino` 10.4.0, `zod` 4.6.7, `viem` 2.57.7 (keccak and ABI helpers, also used by the parity generators), `vite` 8.3.4, `tailwindcss` 3.4.19, `typescript` 5.9.3, `vitest` 5.0.5, `tsx` 4.23.15, `eslint` 10.13.0. Baseline Solidity libraries (used by the Monad contracts and by the vector generators): OpenZeppelin Contracts v5.6.1, forge-std v1.17.0, Solady v0.1.26 and the Pyth Entropy SDK 2.2.1 (git-ignored, installed locally). No project template or boilerplate repository was used; the 3D scene comes from the project's own earlier Three.js prototype.
 
-### Mainnet deployment
+## 12. Known limits and what is next
 
-The same contract system is also deployed on **Monad mainnet (chain id 143)** as a showcase. Everything else in this project (keeper, web app, demo flow, tests) targets **testnet only**; nothing on mainnet is used or funded beyond the deployment itself.
-
-| Contract | Address |
-|---|---|
-| Arena | [`0x1457C31eb744f805E3F5a3c0a369b45397ACD975`](https://monadvision.com/address/0x1457C31eb744f805E3F5a3c0a369b45397ACD975) |
-| EntropySeedSource | [`0xa5A2c24CF63f5201C4467B01f49ADDceE6db444a`](https://monadvision.com/address/0xa5A2c24CF63f5201C4467B01f49ADDceE6db444a) |
-| MonsterCoin implementation | [`0x7182918AfE574309BEB1fE48449d89d5cF285CA1`](https://monadvision.com/address/0x7182918AfE574309BEB1fE48449d89d5cF285CA1) |
-| Owner | `0xe2B7f8a71d3AcAEBBe3BBEF1B5001888CA0013c0` |
-| Pyth Entropy / provider | `0xD458261E832415CFd3BAE5E416FdF3230ce6F134` / `0x52DeaA1c84233F7bb8C8A45baeDE41091c616506` |
-| Deploy block | 116127757 |
-
-- All three contracts are verified on Sourcify (MonadVision); addresses are recorded in `deployments/143.json`.
-- Deployed with `script/Deploy.s.sol` using `SKIP_FIRST_ROUND=true` and `MAX_ENTROPY_FEE_WEI=2000000000000000000`. The gas cost was about 1.34 MON.
-- The default config is the blitz preset with the Entropy fee cap raised to 2 MON, because the mainnet Entropy fee read on chain is about 1.4 MON per request (testnet is about 0.13 MON).
-- No round exists and the treasury is empty. To run it, someone would have to open a round with about 10 MON for the reserve floor and fund the treasury to roughly 18 MON before `startRound`, and run a keeper.
-- The code is unaudited. Do not fund it or treat it as production.
-
-## 12. Repository layout
-
-```
-contracts/          Foundry project: Arena, MonsterCoin, seed sources, libs, tests, deploy scripts, ABI export
-  src/              Arena.sol, IArena.sol, MonsterCoin.sol, libs/, seed/
-  script/           Deploy.s.sol, DeployLocal.s.sol, CreateRound.s.sol, Presets.sol, ABI scripts
-  test/             unit, fuzz, invariant and red-team tests
-  abi/              exported ABI JSON
-  DEPLOY.md, GAS.md deploy steps with day-1 checks, measured gas limits
-shared/             @animal/shared: types, ABI, ChainFeed, ArenaStore, reducer, fixtures
-keeper/             keeper loop, HTTP API, demo admin, relay, drip, house seeding scripts
-web/                Vite app: extracted 3D scene, React islands, director, wallet
-sim/                deterministic economy simulator and its tests
-deployments/        deployment descriptors per chain (public addresses only)
-scripts/            dev-local.sh (anvil), dev-testnet.sh (testnet against local services)
-docs/               pitch (economy report, copy), demo runbook, research, handoffs, brainstorm
-Dockerfile.keeper, Dockerfile.web, deplexo.yaml   container and hosting descriptors
-```
-
-`docs/handoffs/contracts.md` is the interface contract between roles (functions, events, types, mirror rules). `docs/pitch/economy-report.md` is the economy verdict. `docs/demo/runbook.md` is the click-by-click demo path.
-
-## 13. Run it locally
-
-Requirements: Node 24 or newer, pnpm 11, Foundry (forge, cast, anvil), Docker only for the container builds.
-
-```bash
-pnpm install
-
-pnpm typecheck && pnpm lint && pnpm test          # shared, keeper, web
-(cd contracts && forge test --network monad)       # 127 contract tests, about two minutes
-node sim/test.mjs                                  # 13 simulator tests
-node sim/run.mjs --variant all --runs 4000         # EV per MON table
-```
-
-`contracts/lib` (OpenZeppelin v5.6.1, forge-std, Solady, the Pyth Entropy SDK) is git-ignored; install it with `forge install --no-git` before the first `forge build`.
-
-### Local chain, full round on anvil
-
-```bash
-bash scripts/dev-local.sh
-```
-
-This starts `anvil --network monad`, deploys the contracts with a mock seed source, seeds house coins, runs the keeper and the web app on http://127.0.0.1:5173. A small five-coin round:
-
-```bash
-MIN_COINS=5 MAX_COINS=6 CLASHES_PER_EPOCH=3 HOUSE_COUNT=5 \
-EXTRA_TREASURY=10000000000000000000 bash scripts/dev-local.sh
-```
-
-### Local services against the testnet
-
-```bash
-cp .env.example .env.local     # then fill in keys; this file is git-ignored
-bash scripts/dev-testnet.sh    # keeper on :8787, web on :5173 reading deployments/10143.json
-```
-
-### Fixture replay with no chain
-
-```bash
-pnpm --filter web dev          # then open http://127.0.0.1:5173/?replay=fixture
-```
-
-## 14. Deploy it
-
-Order matters: contracts first, then the keeper (it needs the Arena address), then the web build (it needs the Arena address, the deploy block and the keeper host).
-
-**1. Contracts** (Foundry keystore, never a private key in the repository):
-
-```bash
-cd contracts
-cast wallet import <name> --interactive            # or --private-key with --unsafe-password for a throwaway
-export DEPLOYER_ACCOUNT=<name> KEEPER_ADDRESS=<keeper address> \
-  ENTROPY_ADDRESS=0x825c0390f379C631f3Cf11A82a37D20BddF93c07 \
-  ENTROPY_PROVIDER=0x6CC14824Ea2918f5De5C2f75A9Da968ad4BD6344
-forge script script/Deploy.s.sol --rpc-url https://testnet-rpc.monad.xyz \
-  --account <name> --sender <deployer address> --broadcast
-```
-
-The script deploys `MonsterCoin`, `Arena` (10 MON reserve floor by default, `RESERVE_FLOOR_WEI` overrides), `EntropySeedSource`, calls `setSeedSource` and `setDefaultConfig` (**blitz** preset), opens round 1 and writes `deployments/10143.json` and `10143.params.json`. About 1.4 MON of gas (measured) plus the floor. See `contracts/DEPLOY.md` for the day-one checks.
-
-To change the default config of an existing Arena without redeploying, edit `Presets.sol` and run `ARENA_ADDRESS=<arena> forge script script/SetDefaultConfig.s.sol ... --broadcast`. It only affects rounds opened afterwards; an open lobby can be aborted once its `lobbySeconds` have passed.
-
-**2. Keeper** (Deplexo API, ZIP upload, Dockerfile build). The API reference is `https://deplexo.com/user/api/v1/docs`.
-
-```bash
-# zip the files git would track (no .env, no node_modules), then upload
-curl -X POST -H "Authorization: Bearer $DEPLEXO_API_KEY" -H "Content-Type: application/zip" \
-  -H 'Content-Disposition: attachment; filename="source.zip"' --data-binary @source.zip \
-  "https://deplexo.com/user/api/v1/sources?filename=source.zip"          # returns {"id": "<sourceId>"}
-
-# set the environment (upsert; body is {"vars": {KEY: value}})
-curl -X PUT -H "Authorization: Bearer $DEPLEXO_API_KEY" -H "Content-Type: application/json" \
-  --data @env-body.json "https://deplexo.com/user/api/v1/apps/<appId>/env"
-
-# build and start from the uploaded source
-curl -X POST -H "Authorization: Bearer $DEPLEXO_API_KEY" -H "Content-Type: application/json" \
-  -d '{"sourceId":"<sourceId>"}' "https://deplexo.com/user/api/v1/apps/<appId>/restart"
-```
-
-A new app is created with `POST /deploy` (`name`, `sourceId`, `dockerfilePath: "Dockerfile.keeper"`, `env`); an existing one is updated with the two calls above. The free plan allows one app. `restart` often answers `service unavailable` or the build ends `failed` with "server capacity is temporarily unavailable": repeat the call until the response carries a `deploymentId` and `GET /apps/<appId>/deployments` shows `success`. Check `https://<keeper host>/healthz` afterwards.
-
-Keeper environment (set in the hosting dashboard or through the API, never committed): `RPC_HTTP_URL`, `RPC_WS_URL`, `ARENA_ADDRESS`, `DEPLOY_BLOCK`, `KEEPER_PRIVATE_KEY`, `DRIP_PRIVATE_KEY`, `SEEDER_PRIVATE_KEY`, `HOUSE_MNEMONIC`, `DEMO_ADMIN_TOKEN`, `ALLOWED_ORIGIN`, plus the demo tuning `DRIP_AMOUNT_MON=1`, `HOUSE_GAS_BUFFER=0.1`, `HOUSE_FLAT_SEED=1`. Leave `ROUND_ID` unset so the keeper follows the newest round, and leave `PORT` to the platform. The full list is in `.env.example` and `keeper/README.md`.
-
-**3. Web** (static, prebuilt, Vercel):
-
-```bash
-VITE_CHAIN_ID=10143 VITE_RPC_HTTP_URL=https://testnet-rpc.monad.xyz VITE_RPC_WS_URL=wss://testnet-rpc.monad.xyz \
-VITE_ARENA_ADDRESS=<arena> VITE_DEPLOY_BLOCK=<block> VITE_KEEPER_URL=/keeper VITE_DEMO_TOKEN=<same as DEMO_ADMIN_TOKEN> \
-  pnpm --filter web exec vite build
-mkdir -p .vercel/output/static && cp -r web/dist/. .vercel/output/static/
-echo '{"version":3,"routes":[{"src":"/keeper/(.*)","dest":"https://<keeper host>/$1"},{"handle":"filesystem"},{"src":"/(.*)","dest":"/index.html"}]}' > .vercel/output/config.json
-vercel link --project fera-fun --yes && vercel deploy --prebuilt --prod --yes
-```
-
-The demo token ends up in the public bundle by design; it only protects testnet funds. `shared/house-coins.json` must hold the addresses of the current house wallets (the keeper's `seed-house` script rewrites it), otherwise house coins are not labelled **House**.
-
-**4. Smoke test.** Open `https://fera-fun.vercel.app/?demo`, press **Create Lobby**, then **Seed 5 Animals** within the 3-hour lobby window. The round should reach Settled by itself in about a minute. The same flow through the API: `POST /demo/create-round` and `POST /demo/seed-house` with the `x-demo-token` header.
-
-**Known issues.** Deplexo shows its own "App unavailable" page for any 5xx from the keeper, so the real cause is in the runtime logs (`GET /apps/<appId>/logs/runtime`). A lobby that stays empty for `lobbySeconds` is aborted by the keeper; create a new one. The Arena treasury only grows through carry-over, so older deployments keep their floor locked.
-
-## 15. Demo guide
-
-1. Open https://fera-fun.vercel.app/?demo. The **Demo controls** panel appears at the bottom left and can be collapsed.
-2. **Create Lobby** (enabled when there is no round, or the last round is Settled or Aborted) opens a lobby with the stored default config. Any wallet can also use the public **Start New Lobby** button.
-3. **Seed 5 Animals** (enabled in a lobby with free slots) launches five house coins labelled **House**, leaving the sixth slot for you: press **Launch Coin** (name, ticker, seed 0.1 MON) and the full lobby starts by itself.
-4. In demo mode (`/?demo`) a **burner wallet** connects by itself: a throwaway key kept in the browser signs every transaction, so there are no wallet popups or risk warnings, and it asks the faucet for test MON when its balance is low (the faucet gives each address 1 MON per hour). Transactions are real and on chain; only the signer differs. To use your own wallet instead, choose Disconnect in the wallet menu and connect it. Press **Launch Coin**, optionally add an image, pick a monster and skin, and confirm. A full lobby (six coins on the lite preset) starts the round at once; a lobby that reaches its deadline with at least five coins starts then.
-5. Epochs run by themselves: lock, seed, resolve. Trading is open between epochs, pools move and monsters level up.
-6. During the last clash between the final two coins the camera focuses on the two fighters.
-7. The **Chosen One** screen shows the redeem rate and final pool. Holders redeem, holders of eliminated coins claim consolation, creators claim their seed.
-
-The stage panel shows the round number, the stage and the time left for the current wait (lobby, next lock or resolving).
-
-## 16. Technology
-
-| Layer | Technology |
-|---|---|
-| Chain | Monad testnet (EVM, 300 ms blocks, about 600 ms finality, `monadLogs` subscription) |
-| Contracts | Solidity 0.8.31, Foundry (forge, anvil, cast), OpenZeppelin 5.6.1, Solady powWad, ERC-1167 clones |
-| Randomness | Pyth Entropy v2 behind an `ISeedSource` interface |
-| Shared library | TypeScript 5.9, viem 2.57, zod 4 |
-| Keeper | Node 24, Hono 4.13, viem, pino, esbuild bundle |
-| Web | Vite, React 19 islands, Tailwind 3, three 0.128 (extracted prototype scene), viem |
-| Simulator | plain Node, deterministic seeded RNG |
-| Packaging | pnpm 11 workspaces, Docker multi-stage builds |
-| Hosting | Vercel (static, prebuilt output with rewrite), Deplexo (container), public Monad RPC |
-| Testing | forge (unit, fuzz, invariant), vitest, simulator checks |
-
-## 17. What is real, what is simplified
-
-- **Real:** the money (each coin's pool, the merger split, fixed-rate claims, redeem), the pairing, the clash rolls and the hunts, all from one Pyth Entropy seed per epoch, all on a public testnet.
-- **Replayed:** monster movement, duel strikes and hunt fights are animations seeded by the event ids and forced to end on the chain's result.
-- **Simplified:** testnet play-money; the blitz preset shortens the timers; house coins are seeded by the project and labelled **House**; the economy numbers come from a simulator and are tuned for a demo, not for mainnet.
-- **Not done:** an external audit, an indexer, mainnet, and a hardened story for the demo token that ships inside the public web bundle (it only protects testnet funds).
+- Testnet only; no mainnet NEAR deployment; not audited; the deployer key is still on the testnet account (section 6).
+- Randomness is block randomness with the residual validator influence described in section 5; commit-reveal is the named upgrade.
+- Coins are ledger assets, not NEP-141 tokens; NEP-245 views and transfers are not implemented, which matters for the `memecoins` track.
+- Burner key wallet only; real wallet connection and an internal play balance are not built.
+- Sybil resistance and per-account storage cost are not handled (section 6).
+- Coin images, a `consolationMode` switch and keeper bounties from the Monad version are not part of the NEAR contract.
+- Hosting (keeper and web) and the demo video are pending; the live URL and X post above are placeholders until they exist.
