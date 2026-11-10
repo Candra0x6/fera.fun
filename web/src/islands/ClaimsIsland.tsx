@@ -35,6 +35,7 @@ export function useClaims(): { claims: Claims; reload: () => void } {
   const persisted = state.persisted.coins
   const round = state.persisted.round
   const address = wallet.accountId
+  const seedClaims = state.events.filter((event) => event.name === 'SeedClaimed').length
   const signature = useMemo(() => persisted.map((coin) => `${coin.coinId}:${coin.status}`).join(',') + `|${round?.phase ?? ''}`, [persisted, round?.phase])
 
   useEffect(() => {
@@ -103,7 +104,7 @@ export function useClaims(): { claims: Claims; reload: () => void } {
     return () => {
       cancelled = true
     }
-  }, [signature, address, tick])
+  }, [signature, address, tick, seedClaims])
 
   useEffect(() => {
     const handle = window.setInterval(() => setTick((value) => value + 1), 6000)
