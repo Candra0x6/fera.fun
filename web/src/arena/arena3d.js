@@ -195,7 +195,8 @@ scene.fog = new THREE.Fog(lin(0x7fd0f6), 420 * U, 900 * U);
 const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 10 * U, 1000 * U);
 // Pre-port framing (0,178,202 -> 0,0,10 for radius 135) scaled with the island.
 const WORLD_MONSTER_K = 0.4;
-const DEFAULT_CAM_POS = new THREE.Vector3(0, 377.8 * U, 132.2 * U);
+const ISO_VIEW = new URLSearchParams(window.location.search).get('cam') === 'iso';
+const DEFAULT_CAM_POS = ISO_VIEW ? new THREE.Vector3(0, 268.7 * U, 278.7 * U) : new THREE.Vector3(0, 377.8 * U, 132.2 * U);
 const DEFAULT_CAM_TARGET = new THREE.Vector3(0, 0, 10 * U);
 camera.position.copy(DEFAULT_CAM_POS);
 
