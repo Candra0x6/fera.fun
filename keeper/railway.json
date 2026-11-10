@@ -1,10 +1,9 @@
 {
   "build": {
-    "builder": "RAILPACK",
-    "buildCommand": "pnpm install --frozen-lockfile"
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile.keeper"
   },
   "deploy": {
-    "startCommand": "pnpm --filter keeper start",
     "healthcheckPath": "/healthz",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",

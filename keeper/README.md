@@ -40,3 +40,20 @@ pnpm --filter keeper exec tsx scripts/near-fund.ts balances
 - `/drip`: a fresh key first tries the helper (`fera-<10 hex>.testnet`, 10 NEAR, no treasury spend); when the helper refuses or is rate limited it is paused for 5 minutes and the drip account creates `<10 hex>.<drip account>` with that key and `DRIP_AMOUNT_NEAR`. The same key returns the same account; a balance below 1 NEAR is topped up at most once per hour; the drip account never goes below 3 NEAR.
 - `/demo/*`: `create-round` calls `create_round` from the seeder; `seed-house` creates or tops up `h1..h5.<seeder>` and launches one coin from each. A house coin is recognisable by a creator ending in `.fera-seeder.testnet`.
 - Polling is paced from the contract state (next lock, seed block, lobby every 2 s) because the public RPC endpoints answer 429 under steady load.
+
+## Railway (prepared, not deployed)
+
+Service root is the repository root; set the config file path to `/keeper/railway.json`, which selects `Dockerfile.keeper` (esbuild bundle, node 24 slim, runs as the `node` user, 256 MB heap cap, health check `/healthz`). `deployments/near-testnet.json` is copied into the image so the arena account and gas come from the deployment record. Railway injects `PORT`.
+
+| Variable | Secret | Value |
+|---|---|---|
+| `KEEPER_PRIVATE_KEY` | yes | `ed25519:` key of `fera-keeper.testnet` (from `~/.config/animal-near`) |
+| `DRIP_PRIVATE_KEY` | yes | key of `fera-drip.testnet`; without it `/drip` answers 503 |
+| `SEEDER_PRIVATE_KEY` | yes | key of `fera-seeder.testnet`; needed for the demo routes |
+| `HOUSE_SEED` | yes | the contents of `~/.config/animal-near/house-seed`; changing it orphans `h1..h5` |
+| `DEMO_ADMIN_TOKEN` | yes | the contents of `~/.config/animal-near/demo-admin-token` (also `VITE_DEMO_TOKEN` in the web build) |
+| `ALLOWED_ORIGIN` | no | the exact web origin, for example `https://fera-near.vercel.app` |
+| `NEAR_RPC_URLS` | no | optional; defaults to the four public testnet endpoints |
+| `ARENA_ACCOUNT_ID`, `KEEPER_ACCOUNT_ID`, `DRIP_ACCOUNT_ID`, `SEEDER_ACCOUNT_ID` | no | optional; defaults match the deployment |
+
+Health: `/healthz` answers 200 only after the first snapshot and while the feed lag is at most 5 s, so a sustained RPC outage turns it red. An epoch slower than 90 s logs an error with `alert: true`. Logs pass through the redactor (secret keys, the house seed and the demo token are masked).
