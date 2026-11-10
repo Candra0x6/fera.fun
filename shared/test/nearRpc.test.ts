@@ -91,6 +91,85 @@ describe('createNearRpc', () => {
   })
 })
 
+describe('createNearRpc rate limits and head cache', () => {
+  const ok = (): ReturnType<NearFetch> => reply({ result: { result: bytesOf(1), block_height: 1, block_hash: 'h' } })
+
+  it('skips an endpoint for the cooldown after it answers 429 and tries it again afterwards', async () => {
+    let clock = 0
+    const hits: string[] = []
+    let limited = true
+    const rpc = createNearRpc({
+      urls: ['https://one', 'https://two'],
+      now: () => clock,
+      cooldownMs: 20_000,
+      fetchImpl: (url) => {
+        hits.push(url)
+        return url === 'https://one' && limited ? reply({}, 429) : ok()
+      }
+    })
+    await rpc.callView('a', 'm', {})
+    await rpc.callView('a', 'm', {})
+    await rpc.callView('a', 'm', {})
+    expect(hits).toEqual(['https://one', 'https://two', 'https://two', 'https://two'])
+    clock = 21_000
+    limited = false
+    await rpc.callView('a', 'm', {})
+    await rpc.callView('a', 'm', {})
+    expect(hits.slice(4)).toEqual(['https://two', 'https://two'])
+  })
+
+  it('still tries a cooling endpoint when every endpoint is cooling', async () => {
+    const hits: string[] = []
+    const rpc = createNearRpc({
+      urls: ['https://one'],
+      now: () => 0,
+      fetchImpl: (url) => {
+        hits.push(url)
+        return hits.length === 1 ? reply({}, 429) : ok()
+      }
+    })
+    await expect(rpc.callView('a', 'm', {})).rejects.toBeInstanceOf(NearRpcError)
+    await rpc.callView('a', 'm', {})
+    expect(hits).toHaveLength(2)
+  })
+
+  it('serves the same head from cache within the window and shares an in-flight read', async () => {
+    let clock = 0
+    let reads = 0
+    const rpc = createNearRpc({
+      urls: ['https://one'],
+      now: () => clock,
+      headCacheMs: 400,
+      fetchImpl: () => {
+        reads += 1
+        return reply({ result: { header: { height: reads, hash: 'x', timestamp_nanosec: '1000000000' } } })
+      }
+    })
+    const [a, b] = await Promise.all([rpc.blockHeader('final'), rpc.blockHeader('final')])
+    expect(a.height).toBe(1)
+    expect(b.height).toBe(1)
+    clock = 399
+    expect((await rpc.blockHeader('final')).height).toBe(1)
+    clock = 401
+    expect((await rpc.blockHeader('final')).height).toBe(2)
+    expect((await rpc.blockHeader('optimistic')).height).toBe(3)
+    expect(reads).toBe(3)
+  })
+
+  it('does not cache a failed head read', async () => {
+    let calls = 0
+    const rpc = createNearRpc({
+      urls: ['https://one'],
+      fetchImpl: () => {
+        calls += 1
+        return calls === 1 ? Promise.reject(new Error('offline')) : reply({ result: { header: { height: 7, hash: 'x', timestamp_nanosec: '0' } } })
+      }
+    })
+    await expect(rpc.blockHeader('final')).rejects.toBeInstanceOf(NearRpcError)
+    expect((await rpc.blockHeader('final')).height).toBe(7)
+  })
+})
+
 describe('decoders', () => {
   it('rejects malformed pages and snapshots', () => {
     expect(() => decodeEventPage({ events: 'x' })).toThrow(NearDecodeError)

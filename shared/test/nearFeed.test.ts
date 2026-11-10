@@ -80,7 +80,9 @@ describe('createNearFeed', () => {
     expect(h.commits).toEqual([{ blockId: '103', blockNumber: 103, commitState: 'Finalized' }])
     chain.finalHeight = 110
     await h.timers.step()
+    await h.timers.step()
     expect(h.commits.map((c) => c.blockNumber)).toEqual([103, 104])
+    await h.timers.step()
     await h.timers.step()
     expect(h.commits).toHaveLength(2)
     h.feed.stop()
@@ -90,6 +92,7 @@ describe('createNearFeed', () => {
     const chain = new FakeChain()
     const h = harness(chain)
     await h.start()
+    for (let i = 0; i < 4; i += 1) await h.timers.step()
     chain.height = 120
     chain.finalHeight = 125
     chain.emit('RoundCreated', { config: { levelingEpochs: 1 } })
@@ -195,6 +198,38 @@ describe('createNearFeed', () => {
     expect(h.envelopes).toHaveLength(1)
     expect(h.statuses[h.statuses.length - 1]?.upstream).toBe('polling')
     h.feed.stop()
+  })
+
+  it('polls cheaply: one events call per tick and a final head only now and then', async () => {
+    const chain = new FakeChain()
+    const h = harness(chain)
+    await h.start()
+    for (let i = 0; i < 10; i += 1) await h.timers.step()
+    const events = chain.calls.filter((c) => c === 'events_since').length
+    expect(events).toBe(11)
+    expect(chain.headerReads).toBeLessThanOrEqual(4)
+    h.feed.stop()
+  })
+
+  it('backs off after failures and resumes the normal pace when the rpc recovers', async () => {
+    const chain = new FakeChain()
+    const delays: number[] = []
+    const timers = manualTimers()
+    const original = timers.setTimeout.bind(timers)
+    timers.setTimeout = (callback, ms) => {
+      delays.push(ms)
+      return original(callback, ms)
+    }
+    const feed = createNearFeed({ rpcUrls: ['unused'], arena: ARENA, roundId: 1, rpc: chain, timers, houseTokens: new Set(), pollMs: 1000 })
+    await feed.start()
+    await flush()
+    chain.failures = 3
+    await timers.step()
+    await timers.step()
+    await timers.step()
+    await timers.step()
+    expect(delays.slice(0, 5)).toEqual([1000, 2000, 4000, 8000, 1000])
+    feed.stop()
   })
 
   it('stops polling after stop()', async () => {

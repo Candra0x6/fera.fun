@@ -25,6 +25,10 @@ export interface NearFeedOptions {
 const PAGE_LIMIT = 100
 const MAX_PAGES_PER_TICK = 8
 const DEFAULT_POLL_MS = 1000
+const MAX_BACKOFF_MS = 8000
+const IDLE_FINAL_EVERY = 5
+const PENDING_FINAL_EVERY = 2
+const BLOCK_MS_ESTIMATE = 600
 
 function defaultTimers(): NearFeedTimers {
   return {
@@ -55,11 +59,15 @@ export function createNearFeed(options: NearFeedOptions): ChainFeed {
   let hasSnapshot = false
   let upstream: FeedStatus['upstream'] = 'reconnecting'
   let headBlock = 0
-  let headTimestampMs = 0
+  let anchorHeight = 0
+  let anchorTimestampMs = 0
   let finalHeight = 0
+  let ticks = 0
+  let failures = 0
   let startResolve: (() => void) | null = null
 
   function emitStatus(): void {
+    const headTimestampMs = anchorTimestampMs > 0 ? anchorTimestampMs + Math.max(0, headBlock - anchorHeight) * BLOCK_MS_ESTIMATE : 0
     const lag = headTimestampMs > 0 ? Math.max(0, (timers.now() - headTimestampMs) / 1000) : 0
     const status: FeedStatus = { upstream, headBlock, lagSeconds: Math.round(lag * 1000) / 1000 }
     for (const cb of [...statusListeners]) cb(status)
@@ -129,34 +137,42 @@ export function createNearFeed(options: NearFeedOptions): ChainFeed {
     }
   }
 
-  async function tick(): Promise<void> {
+  async function refreshFinal(): Promise<void> {
     const final = await rpc.blockHeader('final')
     if (final.height > finalHeight) finalHeight = final.height
+    if (final.height >= anchorHeight) {
+      anchorHeight = final.height
+      anchorTimestampMs = final.timestampMs
+    }
+  }
+
+  async function tick(): Promise<void> {
+    const every = votedHeights.size > 0 ? PENDING_FINAL_EVERY : IDLE_FINAL_EVERY
+    if (!hasSnapshot || ticks % every === 0) await refreshFinal()
+    ticks += 1
     if (!hasSnapshot) await adoptSnapshot()
     await readEvents()
     promoteFinalized()
-    const head = await rpc.blockHeader('optimistic').catch(() => null)
-    if (head !== null) {
-      if (head.height > headBlock) headBlock = head.height
-      headTimestampMs = head.timestampMs
-    }
     if (upstream !== 'polling') setUpstream('polling')
     else emitStatus()
   }
 
   function schedule(): void {
     if (stopped) return
+    const delay = failures === 0 ? pollMs : Math.min(MAX_BACKOFF_MS, pollMs * 2 ** failures)
     timer = timers.setTimeout(() => {
       timer = null
       void run()
-    }, pollMs)
+    }, delay)
   }
 
   async function run(): Promise<void> {
     if (stopped) return
     try {
       await tick()
+      failures = 0
     } catch (error) {
+      failures += 1
       log('poll failed', { error: String(error) })
       setUpstream('reconnecting')
     }

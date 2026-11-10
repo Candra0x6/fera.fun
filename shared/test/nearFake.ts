@@ -24,6 +24,7 @@ export class FakeChain implements NearRpc {
   calls: string[] = []
   failures = 0
   snapshotReads = 0
+  headerReads = 0
 
   emit(name: ArenaEventName, args: Record<string, unknown>, roundId = this.roundId, blocksLater = 0): NearRawEvent {
     this.height += blocksLater
@@ -107,6 +108,7 @@ export class FakeChain implements NearRpc {
       this.failures -= 1
       throw new NearRpcError('http', 'http 503', true)
     }
+    this.headerReads += 1
     const height = finality === 'final' ? this.finalHeight : this.height
     return { height, hash: `block-${height}`, timestampMs: this.tsMs + height * 600 }
   }

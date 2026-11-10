@@ -45,7 +45,7 @@ export interface NearBlockHeader {
 
 export interface NearRpc {
   callView(contractId: string, method: string, args: Record<string, unknown>): Promise<NearViewResult>
-  viewAccount(accountId: string): Promise<NearAccountView | null>
+  viewAccount(accountId: string, finality?: NearFinality): Promise<NearAccountView | null>
   blockHeader(finality: NearFinality): Promise<NearBlockHeader>
 }
 
@@ -53,6 +53,9 @@ export interface NearRpcOptions {
   urls: readonly string[]
   fetchImpl?: NearFetch
   timeoutMs?: number
+  now?: () => number
+  cooldownMs?: number
+  headCacheMs?: number
 }
 
 const RETRYABLE_CAUSES: ReadonlySet<string> = new Set([
@@ -64,6 +67,10 @@ const RETRYABLE_CAUSES: ReadonlySet<string> = new Set([
 ])
 
 const DEFAULT_TIMEOUT_MS = 8000
+const DEFAULT_COOLDOWN_MS = 20_000
+const DEFAULT_HEAD_CACHE_MS = 400
+const NETWORK_COOLDOWN_MS = 5000
+const RATE_LIMIT_STATUS = 429
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
@@ -127,16 +134,28 @@ function decodeBytes(bytes: unknown): unknown {
 export function createNearRpc(options: NearRpcOptions): NearRpc {
   const fetchImpl = options.fetchImpl ?? defaultFetch(options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
   const urls = [...options.urls]
+  const now = options.now ?? (() => Date.now())
+  const cooldownMs = options.cooldownMs ?? DEFAULT_COOLDOWN_MS
+  const headCacheMs = options.headCacheMs ?? DEFAULT_HEAD_CACHE_MS
+  const coolingUntil = new Map<string, number>()
+  const heads = new Map<NearFinality, { at: number; value: Promise<NearBlockHeader> }>()
   let cursor = 0
   let nextId = 1
+
+  function attemptOrder(): string[] {
+    const ordered = urls.map((_, attempt) => urls[(cursor + attempt) % urls.length]).filter((url): url is string => url !== undefined)
+    const clock = now()
+    const ready = ordered.filter((url) => (coolingUntil.get(url) ?? 0) <= clock)
+    const cooling = ordered
+      .filter((url) => (coolingUntil.get(url) ?? 0) > clock)
+      .sort((a, b) => (coolingUntil.get(a) ?? 0) - (coolingUntil.get(b) ?? 0))
+    return [...ready, ...cooling]
+  }
 
   async function request(method: string, params: Record<string, unknown>): Promise<Record<string, unknown>> {
     if (urls.length === 0) throw new NearRpcError('http', 'no rpc urls configured')
     let last: unknown = new NearRpcError('http', 'no rpc endpoint answered', true)
-    for (let attempt = 0; attempt < urls.length; attempt += 1) {
-      const index = (cursor + attempt) % urls.length
-      const url = urls[index]
-      if (url === undefined) continue
+    for (const url of attemptOrder()) {
       nextId += 1
       try {
         const response = await fetchImpl(url, {
@@ -144,6 +163,7 @@ export function createNearRpc(options: NearRpcOptions): NearRpc {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ jsonrpc: '2.0', id: nextId, method, params })
         })
+        if (response.status === RATE_LIMIT_STATUS) coolingUntil.set(url, now() + cooldownMs)
         if (!response.ok) throw new NearRpcError('http', `http ${response.status} from ${url}`, true)
         const body = asRecord(await response.json())
         if (body === null) throw new NearRpcError('malformed', `malformed json-rpc response from ${url}`, true)
@@ -157,15 +177,29 @@ export function createNearRpc(options: NearRpcOptions): NearRpc {
             ? new NearRpcError('unknown_account', inline)
             : new NearRpcError('contract', inline)
         }
-        cursor = index
+        cursor = urls.indexOf(url)
         return result
       } catch (error) {
         last = error
         if (error instanceof NearRpcError && !error.retryable) throw error
-        if (!(error instanceof NearRpcError)) last = new NearRpcError('http', String(error), true)
+        if (!(error instanceof NearRpcError)) {
+          coolingUntil.set(url, now() + Math.min(cooldownMs, NETWORK_COOLDOWN_MS))
+          last = new NearRpcError('http', String(error), true)
+        }
       }
     }
     throw last
+  }
+
+  async function readHeader(finality: NearFinality): Promise<NearBlockHeader> {
+    const result = await request('block', { finality })
+    const header = asRecord(result['header'])
+    const height = header?.['height']
+    const hash = textOf(header?.['hash'])
+    const nanos = header?.['timestamp_nanosec']
+    if (typeof height !== 'number' || hash === null) throw new NearRpcError('malformed', 'block result has no header')
+    const timestampMs = typeof nanos === 'string' && /^\d+$/.test(nanos) ? Number(BigInt(nanos) / 1_000_000n) : 0
+    return { height, hash, timestampMs }
   }
 
   return {
@@ -182,11 +216,11 @@ export function createNearRpc(options: NearRpcOptions): NearRpc {
       if (typeof height !== 'number' || hash === null) throw new NearRpcError('malformed', 'view result has no block reference')
       return { value: decodeBytes(result['result']), blockHeight: height, blockHash: hash }
     },
-    async viewAccount(accountId) {
+    async viewAccount(accountId, finality = 'optimistic') {
       try {
         const result = await request('query', {
           request_type: 'view_account',
-          finality: 'optimistic',
+          finality,
           account_id: accountId
         })
         const amount = textOf(result['amount'])
@@ -201,15 +235,15 @@ export function createNearRpc(options: NearRpcOptions): NearRpc {
         throw error
       }
     },
-    async blockHeader(finality) {
-      const result = await request('block', { finality })
-      const header = asRecord(result['header'])
-      const height = header?.['height']
-      const hash = textOf(header?.['hash'])
-      const nanos = header?.['timestamp_nanosec']
-      if (typeof height !== 'number' || hash === null) throw new NearRpcError('malformed', 'block result has no header')
-      const timestampMs = typeof nanos === 'string' && /^\d+$/.test(nanos) ? Number(BigInt(nanos) / 1_000_000n) : 0
-      return { height, hash, timestampMs }
+    blockHeader(finality) {
+      const cached = heads.get(finality)
+      if (cached !== undefined && now() - cached.at < headCacheMs) return cached.value
+      const value = readHeader(finality)
+      heads.set(finality, { at: now(), value })
+      value.catch(() => {
+        if (heads.get(finality)?.value === value) heads.delete(finality)
+      })
+      return value
     }
   }
 }

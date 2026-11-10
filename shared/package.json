@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./catalog.json": "./catalog.json",
     "./house-coins.json": "./house-coins.json",
-    "./fixtures/arena-replay.json": "./fixtures/arena-replay.json"
+    "./fixtures/arena-replay.json": "./fixtures/arena-replay.json",
+    "./fixtures/arena-near-replay.json": "./fixtures/arena-near-replay.json"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -15,7 +16,8 @@
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
     "sync-abi": "node scripts/sync-abi.mjs",
-    "generate-fixture": "tsx scripts/generate-fixture.mjs"
+    "generate-fixture": "tsx scripts/generate-fixture.mjs",
+    "generate-near-fixture": "tsx scripts/generate-near-fixture.mjs"
   },
   "devDependencies": {
     "tsx": "4.23.15",
