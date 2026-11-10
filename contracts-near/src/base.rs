@@ -216,7 +216,7 @@ impl Arena {
         check_ticker(&ticker);
         let creator = env::predecessor_account_id();
         require(round.coins.iter().filter(|c| c.creator == creator).count() < 2, E::CreatorCapReached);
-        require(deposit >= cfg.launch_fee.0, E::BadDeposit);
+        require(deposit >= cfg.launch_fee.0, E::BadSeed);
         let seed = deposit - cfg.launch_fee.0;
         require(seed >= cfg.min_seed.0 && seed <= cfg.max_seed.0, E::BadSeed);
         let l = ok(curve::launch_seed(u(cfg.v_mon0.0), u(cfg.v_tok0.0), u(seed)));

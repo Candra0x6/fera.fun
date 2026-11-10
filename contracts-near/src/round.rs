@@ -49,7 +49,13 @@ impl Arena {
             buf.extend_from_slice(&round.epoch.to_le_bytes());
             buf.extend_from_slice(&round.lock_height.to_le_bytes());
             buf.extend_from_slice(&env::block_height().to_le_bytes());
-            round.seed = env::sha256_array(&buf);
+            #[allow(unused_mut)]
+            let mut seed_value = env::sha256_array(&buf);
+            #[cfg(feature = "replay")]
+            if let Some(forced) = crate::store::read::<[u8; 32]>(b"TESTSEED") {
+                seed_value = forced;
+            }
+            round.seed = seed_value;
             round.seed_ready = true;
             self.emit(
                 "SeedReady",

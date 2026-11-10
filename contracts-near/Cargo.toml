@@ -11,8 +11,12 @@ crate-type = ["cdylib", "rlib"]
 near-sdk = "5.30.1"
 uint = { version = "0.10.2", default-features = false }
 
+[features]
+replay = []
+
 [dev-dependencies]
 near-sdk = { version = "5.30.1", features = ["unit-testing"] }
+fera-arena = { path = ".", features = ["replay"] }
 
 [profile.release]
 codegen-units = 1
@@ -21,3 +25,9 @@ lto = true
 debug = false
 panic = "abort"
 overflow-checks = true
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2

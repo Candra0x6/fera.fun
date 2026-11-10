@@ -50,6 +50,8 @@ pub struct Sim {
     pub height: u64,
     pub seed_byte: u8,
     pub logs: Vec<String>,
+    pub paid: std::collections::BTreeMap<AccountId, u128>,
+    pub spent: std::collections::BTreeMap<AccountId, u128>,
 }
 
 pub fn panic_of<T>(r: Result<T, Box<dyn std::any::Any + Send>>) -> String {
@@ -79,6 +81,8 @@ impl Sim {
             height: 1_000,
             seed_byte: 7,
             logs: Vec::new(),
+            paid: Default::default(),
+            spent: Default::default(),
         }
     }
 
@@ -103,10 +107,12 @@ impl Sim {
         let r = catch_unwind(AssertUnwindSafe(|| f(&mut self.arena)));
         match r {
             Ok(v) => {
+                *self.spent.entry(acc(who)).or_default() += deposit;
                 for receipt in get_created_receipts() {
                     for action in receipt.actions {
                         if let MockAction::Transfer { deposit, .. } = action {
                             self.bank -= deposit.as_yoctonear();
+                            *self.paid.entry(receipt.receiver_id.clone()).or_default() += deposit.as_yoctonear();
                         }
                     }
                 }

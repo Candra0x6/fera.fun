@@ -146,7 +146,7 @@ fn launch_rules() {
     let mut sim = Sim::new(config());
     let id = sim.call("creator", 0, |a| a.create_round());
     let n = |s: &str| s.to_string();
-    sim.expect_err("p0", TENTH - 1, "BadDeposit", |a| a.launch_coin(id, n("Fox"), n("FOX"), 0, 0));
+    sim.expect_err("p0", TENTH - 1, "BadSeed", |a| a.launch_coin(id, n("Fox"), n("FOX"), 0, 0));
     sim.expect_err("p0", 3 * TENTH, "BadSeed", |a| a.launch_coin(id, n("Fox"), n("FOX"), 0, 0));
     sim.expect_err("p0", 2 * TENTH, "BadName", |a| a.launch_coin(id, n(""), n("FOX"), 0, 0));
     sim.expect_err("p0", 2 * TENTH, "BadTicker", |a| a.launch_coin(id, n("Fox"), n("fox"), 0, 0));
