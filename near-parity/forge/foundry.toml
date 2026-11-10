@@ -1,0 +1,23 @@
+[profile.default]
+src = "src"
+script = "script"
+test = "test"
+libs = []
+out = "out"
+cache_path = "cache"
+solc_version = "0.8.31"
+evm_version = "osaka"
+optimizer = true
+optimizer_runs = 200
+bytecode_hash = "none"
+ffi = false
+auto_detect_remappings = false
+allow_paths = ["../../contracts"]
+include_paths = ["../../contracts"]
+remappings = [
+  "monad/=../../contracts/src/",
+  "solady/=../../contracts/lib/solady/src/",
+  "@openzeppelin/contracts/=../../contracts/lib/openzeppelin-contracts/contracts/",
+  "forge-std/=../../contracts/lib/forge-std/src/",
+]
+fs_permissions = [{ access = "read-write", path = "work" }]
