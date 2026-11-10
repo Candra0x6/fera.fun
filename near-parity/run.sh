@@ -20,9 +20,18 @@ combat() {
   "$tsx" "$here/gen/combat.ts" merge
 }
 
+scenario() {
+  for pass in 0 1 2; do
+    "$tsx" "$here/gen/scenario.ts" inputs "$pass"
+    (cd "$here/forge" && flock "$lock" forge script script/GenScenario.s.sol --silent)
+  done
+  "$tsx" "$here/gen/scenario.ts" merge
+}
+
 case "${1:-all}" in
   curve) curve ;;
   combat) combat ;;
-  all) curve; combat ;;
-  *) echo "usage: run.sh curve|combat|all" >&2; exit 2 ;;
+  scenario) scenario ;;
+  all) curve; combat; scenario ;;
+  *) echo "usage: run.sh curve|combat|scenario|all" >&2; exit 2 ;;
 esac

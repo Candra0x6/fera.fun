@@ -10,6 +10,7 @@ evm_version = "osaka"
 optimizer = true
 optimizer_runs = 200
 bytecode_hash = "none"
+code_size_limit = 1000000
 memory_limit = 2147483648
 gas_limit = 9223372036854775807
 ffi = false
