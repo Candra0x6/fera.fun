@@ -1,27 +1,27 @@
 import { EVENT_ARG_NAMES, isEventName } from './events'
-import { isHex } from './args'
 import { defaultSleep } from './store'
 import type { Sleep } from './store'
 import type {
   ArenaEventEnvelope,
+  ArenaEventName,
   ArenaSnapshot,
   ArenaStore,
   CoinView,
   CommitState,
+  BlockId,
   FeedStatus,
-  Hex,
   Phase,
   RoundView
 } from './types'
 
 export interface CommitMessage {
-  blockId: Hex
+  blockId: BlockId
   blockNumber: number
   commitState: CommitState
 }
 
 export interface RetractMessage {
-  blockId: Hex
+  blockId: BlockId
 }
 
 export type FixtureBody =
@@ -74,12 +74,6 @@ function decimal(source: Record<string, unknown>, key: string, path: string): st
   return value
 }
 
-function hex(source: Record<string, unknown>, key: string, path: string): Hex {
-  const value = source[key]
-  if (!isHex(value)) return fail(`${path}.${key}`)
-  return value
-}
-
 function oneOf<T extends string>(source: Record<string, unknown>, key: string, allowed: readonly T[], path: string): T {
   const value = source[key]
   const match = allowed.find((candidate) => candidate === value)
@@ -92,8 +86,8 @@ function parseCoin(value: unknown, path: string): CoinView {
   return {
     roundId: num(c, 'roundId', path),
     coinId: num(c, 'coinId', path),
-    token: hex(c, 'token', path),
-    creator: hex(c, 'creator', path),
+    token: str(c, 'token', path),
+    creator: str(c, 'creator', path),
     name: str(c, 'name', path),
     ticker: str(c, 'ticker', path),
     monsterType: num(c, 'monsterType', path),
@@ -133,7 +127,8 @@ function parseRound(value: unknown, path: string): RoundView {
     treasury: decimal(r, 'treasury', path),
     redeemPool: decimal(r, 'redeemPool', path),
     redeemSupply: decimal(r, 'redeemSupply', path),
-    clashesPlayed: num(r, 'clashesPlayed', path)
+    clashesPlayed: num(r, 'clashesPlayed', path),
+    ...(typeof r['lockHeight'] === 'number' ? { lockHeight: num(r, 'lockHeight', path) } : {})
   }
 }
 
@@ -154,9 +149,17 @@ function parseSnapshot(value: unknown, path: string): ArenaSnapshot {
     round: parseRound(s['round'], `${path}.round`),
     coins: rawCoins.map((coin: unknown, index: number) => parseCoin(coin, `${path}.coins[${index}]`)),
     blockNumber: num(s, 'blockNumber', path),
-    blockId: hex(s, 'blockId', path),
+    blockId: str(s, 'blockId', path),
     serverTime: num(s, 'serverTime', path)
   }
+}
+
+function expectedArgNames(name: ArenaEventName, args: ArenaEventEnvelope['args']): readonly string[] {
+  const names = EVENT_ARG_NAMES[name]
+  if (name === 'EpochLocked' && 'entropySeq' in args && !('lockHeight' in args)) {
+    return names.map((key) => (key === 'lockHeight' ? 'entropySeq' : key))
+  }
+  return names
 }
 
 export function parseEnvelope(value: unknown, path: string): ArenaEventEnvelope {
@@ -171,7 +174,7 @@ export function parseEnvelope(value: unknown, path: string): ArenaEventEnvelope 
     }
     args[key] = entry
   }
-  const expected = EVENT_ARG_NAMES[name]
+  const expected = expectedArgNames(name, args)
   const actual = Object.keys(args)
   if (actual.length !== expected.length || !expected.every((key) => key in args)) {
     return fail(`${path}.args (expected ${expected.join(',')})`)
@@ -180,9 +183,9 @@ export function parseEnvelope(value: unknown, path: string): ArenaEventEnvelope 
     id: str(e, 'id', path),
     name,
     blockNumber: num(e, 'blockNumber', path),
-    blockId: hex(e, 'blockId', path),
+    blockId: str(e, 'blockId', path),
     logIndex: num(e, 'logIndex', path),
-    txHash: hex(e, 'txHash', path),
+    txHash: str(e, 'txHash', path),
     timestamp: num(e, 'timestamp', path),
     commitState: oneOf(e, 'commitState', COMMIT_STATES, path),
     args
@@ -200,7 +203,7 @@ function parseBody(value: unknown, path: string): FixtureBody {
     return {
       kind,
       data: {
-        blockId: hex(d, 'blockId', dataPath),
+        blockId: str(d, 'blockId', dataPath),
         blockNumber: num(d, 'blockNumber', dataPath),
         commitState: oneOf(d, 'commitState', COMMIT_STATES, dataPath)
       }
@@ -208,7 +211,7 @@ function parseBody(value: unknown, path: string): FixtureBody {
   }
   if (kind === 'retract') {
     const d = record(m['data'], dataPath)
-    return { kind, data: { blockId: hex(d, 'blockId', dataPath) } }
+    return { kind, data: { blockId: str(d, 'blockId', dataPath) } }
   }
   if (kind === 'status') {
     const d = record(m['data'], dataPath)

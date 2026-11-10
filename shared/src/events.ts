@@ -5,7 +5,7 @@ export const EVENT_ARG_NAMES: Readonly<Record<ArenaEventName, readonly string[]>
   CoinLaunched: ['roundId', 'coinId', 'token', 'creator', 'name', 'ticker', 'monsterType', 'skinId', 'seedMon', 'vMon', 'vTok', 'supply'],
   RoundStarted: ['roundId', 'startedAt', 'coins'],
   Trade: ['roundId', 'coinId', 'trader', 'isBuy', 'monAmount', 'tokenAmount', 'rMon', 'vMon', 'vTok'],
-  EpochLocked: ['roundId', 'epoch', 'entropySeq', 'aliveMask', 'lockedAt'],
+  EpochLocked: ['roundId', 'epoch', 'lockHeight', 'aliveMask', 'lockedAt'],
   SeedReady: ['roundId', 'epoch', 'seed'],
   ClashResolved: [
     'roundId', 'epoch', 'clashId', 'winner', 'loser', 'winProbBps', 'roll', 'boost', 'consolation', 'toPot', 'toTreasury'

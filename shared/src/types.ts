@@ -1,4 +1,6 @@
 export type Hex = `0x${string}`
+export type AccountId = string
+export type BlockId = string
 export type DecimalString = string
 export type CommitState = 'Proposed' | 'Voted' | 'Finalized' | 'Verified'
 export type Phase = 'Lobby' | 'Leveling' | 'Knockout' | 'Settled' | 'Aborted'
@@ -7,8 +9,8 @@ export type CoinStatus = 'Alive' | 'Eliminated' | 'Champion' | 'Refunded'
 export interface CoinView {
   roundId: number
   coinId: number
-  token: Hex
-  creator: Hex
+  token: string
+  creator: AccountId
   name: string
   ticker: string
   monsterType: number
@@ -47,6 +49,7 @@ export interface RoundView {
   redeemPool: DecimalString
   redeemSupply: DecimalString
   clashesPlayed: number
+  lockHeight?: number
 }
 
 export interface ArenaSnapshot {
@@ -54,7 +57,7 @@ export interface ArenaSnapshot {
   round: RoundView
   coins: CoinView[]
   blockNumber: number
-  blockId: Hex
+  blockId: BlockId
   serverTime: number
 }
 
@@ -68,9 +71,9 @@ export interface ArenaEventEnvelope {
   id: string
   name: ArenaEventName
   blockNumber: number
-  blockId: Hex
+  blockId: BlockId
   logIndex: number
-  txHash: Hex
+  txHash: string
   timestamp: number
   commitState: CommitState
   args: Record<string, string | number | boolean>
@@ -90,8 +93,8 @@ export interface ChainFeed {
   stop(): void
   onSnapshot(cb: (s: ArenaSnapshot) => void): () => void
   onEnvelope(cb: (e: ArenaEventEnvelope) => void): () => void
-  onCommit(cb: (c: { blockId: Hex; blockNumber: number; commitState: CommitState }) => void): () => void
-  onRetract(cb: (r: { blockId: Hex }) => void): () => void
+  onCommit(cb: (c: { blockId: BlockId; blockNumber: number; commitState: CommitState }) => void): () => void
+  onRetract(cb: (r: { blockId: BlockId }) => void): () => void
   onStatus(cb: (s: { upstream: 'live' | 'reconnecting' | 'polling'; headBlock: number; lagSeconds: number }) => void): () => void
 }
 export interface ArenaStore {
@@ -99,8 +102,8 @@ export interface ArenaStore {
   subscribe(cb: () => void): () => void
   hydrate(snapshot: ArenaSnapshot): void
   apply(e: ArenaEventEnvelope): void
-  commit(c: { blockId: Hex; blockNumber: number; commitState: CommitState }): void
-  retract(r: { blockId: Hex }): void
+  commit(c: { blockId: BlockId; blockNumber: number; commitState: CommitState }): void
+  retract(r: { blockId: BlockId }): void
   replay(events: ArenaEventEnvelope[], opts?: { atMs?: boolean }): Promise<void>
 }
 

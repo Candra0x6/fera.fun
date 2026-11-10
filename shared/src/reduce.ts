@@ -1,4 +1,4 @@
-import { argBigInt, argBoolean, argHex, argNumber, argString, MalformedEventError } from './args'
+import { argBigInt, argBoolean, argNumber, argString, MalformedEventError } from './args'
 import type { ArenaEventEnvelope, ArenaSnapshot, CoinView, RoundView } from './types'
 
 export interface Draft {
@@ -112,12 +112,12 @@ export function reduceEvent(draft: Draft, e: ArenaEventEnvelope, houseTokens: Re
       const seedMon = argBigInt(e, 'seedMon')
       const vMon = argBigInt(e, 'vMon')
       const vMon0 = configBigInt(draft.config, 'vMon0')
-      const token = argHex(e, 'token')
+      const token = argString(e, 'token')
       draft.coins.set(coinId, {
         roundId,
         coinId,
         token,
-        creator: argHex(e, 'creator'),
+        creator: argString(e, 'creator'),
         name: argString(e, 'name'),
         ticker: argString(e, 'ticker'),
         monsterType: argNumber(e, 'monsterType'),
@@ -184,7 +184,8 @@ export function reduceEvent(draft: Draft, e: ArenaEventEnvelope, houseTokens: Re
       patchRound(draft, roundId, {
         locked: true,
         epoch: argNumber(e, 'epoch'),
-        lockedAt: argNumber(e, 'lockedAt')
+        lockedAt: argNumber(e, 'lockedAt'),
+        ...(typeof e.args['lockHeight'] === 'number' ? { lockHeight: argNumber(e, 'lockHeight') } : {})
       })
       return
     }

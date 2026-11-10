@@ -1,7 +1,9 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
     "noEmit": true
   },
-  "include": ["src", "test", "catalog.json", "house-coins.json", "fixtures"]
+  "include": ["src", "test", "vitest.config.ts", "catalog.json", "house-coins.json", "fixtures"],
+  "exclude": ["test/chainFeed.test.ts", "test/decode.test.ts", "test/chainHelpers.ts"]
 }

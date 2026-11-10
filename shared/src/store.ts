@@ -9,8 +9,8 @@ import type {
   ArenaState,
   ArenaStateView,
   ArenaStore,
-  CommitState,
-  Hex
+  BlockId,
+  CommitState
 } from './types'
 
 export const COMMIT_RANK: Readonly<Record<CommitState, number>> = {
@@ -70,7 +70,7 @@ function viewOf(draft: Draft): ArenaStateView {
   }
 }
 
-function envelopeKey(blockId: Hex, logIndex: number): string {
+function envelopeKey(blockId: BlockId, logIndex: number): string {
   return `${blockId}:${logIndex}`
 }
 
@@ -79,8 +79,8 @@ export function createArenaStore(options: ArenaStoreOptions = {}): ArenaStore {
   const sleep = options.sleep ?? defaultSleep
   const blockTimeMs = options.blockTimeMs ?? 300
   const events = new Map<string, ArenaEventEnvelope>()
-  const blockStates = new Map<Hex, CommitState>()
-  const finalizedAtHeight = new Map<number, Hex>()
+  const blockStates = new Map<BlockId, CommitState>()
+  const finalizedAtHeight = new Map<number, BlockId>()
   const listeners = new Set<() => void>()
   let base: ArenaSnapshot | null = null
   let cached: ArenaState | null = null
@@ -117,13 +117,13 @@ export function createArenaStore(options: ArenaStoreOptions = {}): ArenaStore {
     }
   }
 
-  function dropSiblings(blockNumber: number, keep: Hex): void {
+  function dropSiblings(blockNumber: number, keep: BlockId): void {
     for (const [key, e] of [...events]) {
       if (e.blockNumber === blockNumber && e.blockId !== keep) events.delete(key)
     }
   }
 
-  function markFinal(blockNumber: number, blockId: Hex): void {
+  function markFinal(blockNumber: number, blockId: BlockId): void {
     finalizedAtHeight.set(blockNumber, blockId)
     dropSiblings(blockNumber, blockId)
   }
